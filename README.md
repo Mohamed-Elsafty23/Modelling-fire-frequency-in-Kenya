@@ -48,4 +48,4 @@ The objective of the publication was to create and evaluate a Bayesian model for
 
 This repository serves as a comprehensive resource for replicating the study's results and exploring the code and data used in the analysis. You can use the provided scripts and datasets to further investigate fire frequency patterns in Kenya or extend the research to other regions. Feel free to explore the code and adapt it to your specific needs.
 
-Please refer to the original publication for detailed information on the methodology, results, and conclusions of the study.
+Please refer to the upcoming publication for detailed information on the methodology, results, and conclusions of the study.
