@@ -22,7 +22,7 @@ The repository is organized into the following folders:
 
 - **model_results**: This folder contains model results on the simulated datasets. The results provide insights into the performance of the Bayesian model.
 
-# Code Scripts
+## Code Scripts
 
 The repository also contains several R scripts that perform various tasks:
 
