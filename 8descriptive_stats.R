@@ -1243,6 +1243,49 @@ rbind(data.frame(nb_result80),
   data.frame() %>% 
   mutate_if(is.numeric, round, 2)
 
+##
+#-----------------------------------------------------------------------
+# Get table to present on beta estimates
+x=series_data2
+set.seed(456)
+n = length(x$count)
+x$tyme <- 1:n
+x$pi <- pi
+# add sine cosine
+x$tcos <- sin(2*pi/x$tyme)+ cos(2*pi/x$tyme)
+
+trainIndex <- round(prop*n)
+# Create the datasets
+fireTrain <- x[1:trainIndex,]
+fireTest  <- x[(trainIndex+1):n,]
+
+# fit the model on whole dataset
+
+brmNB <- rstanarm::stan_glm.nb(count ~  mean_max_temp +
+                                 mean_rainfall +
+                                 #tcos,
+                                 # tyme +
+                                 sin((2*12*pi/tyme) +rnorm(1,sd=0.1))+
+                                 cos((2*12*pi/tyme) + rnorm(1,sd=0.1)),
+                               iter = 2000,
+                               data = x)
+# Extract and tidy the output
+tidied_output <- broom.mixed::tidy(brmNB)
+# View the table
+print(tidied_output)
+
+# Get 95% credible intervals
+credible_intervals <- posterior_interval(brmNB, prob = 0.95)
+print(credible_intervals)
+
+# combine table output
+comb_table <- cbind(tidied_output,credible_intervals[-6,])
+# remove rownames
+rownames(comb_table) <- NULL
+
+# View table
+comb_table
+
 
 ## --------------------------------------------------------------------------------------------------------------------
 
