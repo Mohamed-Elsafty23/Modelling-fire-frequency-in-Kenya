@@ -1,0 +1,75 @@
+graph TD
+    A["Raw Data Sources"] --> B["1_import_merge.py<br/>Data Import & Integration"]
+    A1["MODIS Fire Data<br/>(2000-2020)"] --> B
+    A2["Climate Data<br/>(Rain, Tmax, Tmin)"] --> B
+    
+    B --> C["2_data_aggregate.py<br/>Data Aggregation"]
+    
+    C --> D["3_check_seasonality.py<br/>Seasonality Analysis"]
+    
+    C --> E["fire_data_2000-18.csv<br/>Aggregated Dataset<br/>(our_output/)"]
+    
+    E --> F["5_simulation_temp.py<br/>Data Simulation"]
+    
+    F --> G["Simulated Datasets<br/>Multiple theta values<br/>(1.5, 5, 10, 100)<br/>Multiple time periods<br/>(5, 10, 20, 30 years)<br/>(our_output/simulated_data/)"]
+    
+    G --> H["run_all_models.py<br/>Master Model Orchestrator"]
+    
+    H --> I["Model Implementation"]
+    I1["model_functions.py<br/>(negbinner, stanbinner)"] --> I
+    I2["Standard Negative<br/>Binomial Models"] --> I
+    I3["Bayesian Negative<br/>Binomial Models"] --> I
+    
+    I --> J["Model Results<br/>(RMSE, MASE, Bias)<br/>(our_output/model_results/)"]
+    
+    E --> K["Optional: model_building.py<br/>Model Architecture Analysis<br/>& Overdispersion Testing"]
+    
+    E --> L["Optional: model_fitting.py<br/>Advanced Bayesian Modeling<br/>with MCMC & Model Persistence"]
+    
+    K --> M["Building Results<br/>Simulation & Analysis<br/>(our_output/)"]
+    
+    L --> N["Fitted Models<br/>& Predictions<br/>(our_output/model_results/fitted_models/)"]
+    
+    E --> O["8_descriptive_stats.py<br/>Real Data Analysis"]
+    
+    J --> P["9_sim_visualization.py<br/>Results Visualization"]
+    O --> P
+    M --> P
+    N --> P
+    
+    P --> Q["Final Outputs"]
+    Q1["Performance Metrics<br/>& Comparisons"] --> Q
+    Q2["Visualizations<br/>& Plots"] --> Q
+    Q3["Model Performance<br/>Analysis"] --> Q
+    
+    R["main.py<br/>🐍 PYTHON PIPELINE ORCHESTRATOR<br/>Automated execution with<br/>dependency checking"] --> B
+    R --> C
+    R --> D
+    R --> F
+    R --> H
+    R --> K
+    R --> L
+    R --> O
+    R --> P
+    
+    S["output_utils.py<br/>Output Directory<br/>Management"] --> R
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#f3e5f5
+    style D fill:#f3e5f5
+    style E fill:#e8f5e8
+    style F fill:#fff3e0
+    style G fill:#fff3e0
+    style H fill:#fce4ec
+    style I fill:#fce4ec
+    style J fill:#e8f5e8
+    style K fill:#ffeb3b,color:#000
+    style L fill:#ffeb3b,color:#000
+    style M fill:#fff3e0
+    style N fill:#fff3e0
+    style O fill:#f3e5f5
+    style P fill:#e3f2fd
+    style Q fill:#e8f5e8
+    style R fill:#ff5722,color:#fff
+    style S fill:#9c27b0,color:#fff 

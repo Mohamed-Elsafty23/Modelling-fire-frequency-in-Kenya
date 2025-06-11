@@ -1,0 +1,57 @@
+# Python Requirements for Fire Frequency Modeling Project
+# Core data manipulation and analysis
+pandas
+numpy
+scipy
+
+# Geospatial data processing
+geopandas
+rasterio
+shapely
+
+# Statistical modeling
+scikit-learn
+statsmodels
+
+# Bayesian modeling (optional - comment out if installation issues)
+pymc
+arviz
+
+# Time series analysis
+# tbats  # Alternative: use statsmodels seasonal decompose
+
+# Visualization
+matplotlib
+seaborn
+
+# Parallel processing and utilities
+joblib
+pathlib2
+tqdm
+
+# File format support
+openpyxl
+xlrd
+
+# Optional: Performance improvements
+numba
+numexpr
+
+# Development and testing (optional)
+jupyter
+notebook
+ipykernel
+
+# Additional utilities
+python-dateutil
+pytz
+
+# Additional dependencies for model_building.py and model_fitting.py
+caret  # For train-test splitting alternatives
+pingouin  # For statistical tests and diagnostics
+
+# Bayesian modeling alternatives (optional)
+bambi  # High-level Bayesian modeling
+cmdstanpy  # Stan interface for Python 
+
+
