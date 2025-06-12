@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import glob
 from pathlib import Path
-from output_utils import get_output_path, ensure_output_dirs
+from output_utils import get_output_path, ensure_output_dirs, get_climate_data_path
 
 def aggregate_data():
     """Aggregate all climate-fire data into single dataset"""
@@ -19,7 +19,7 @@ def aggregate_data():
     ensure_output_dirs()
     
     # Read all climate files
-    climate_files = glob.glob(get_output_path("climate/*.csv"))
+    climate_files = glob.glob(get_climate_data_path("*.csv"))
     
     if not climate_files:
         print("No climate files found! Run 1_import_merge.py first.")
@@ -75,8 +75,8 @@ def aggregate_data():
     print("\nSummary statistics:")
     print(fire_data[['count', 'mean_max_temp', 'mean_min_temp', 'mean_rainfall']].describe())
     
-    # Save final dataset
-    output_file = get_output_path("fire_data_2000-18.csv")
+    # Save final dataset to root directory
+    output_file = "fire_data_2000-18.csv"
     fire_data.to_csv(output_file, index=False)
     
     print(f"\nFinal dataset saved as: {output_file}")

@@ -1,4 +1,4 @@
-from output_utils import get_output_path, get_model_results_path, get_simulated_data_path, ensure_output_dirs
+from output_utils import get_output_path, get_model_results_path, get_simulated_data_path, ensure_output_dirs, get_descriptive_plots_path
 #!/usr/bin/env python3
 """
 Descriptive statistics and visualization - Python version of 8descriptive_stats.R
@@ -99,8 +99,8 @@ def create_time_series_plots(data):
     axes[1,1].tick_params(axis='x', rotation=45)
     
     plt.tight_layout()
-    plt.savefig(get_output_path('time_series_plots.png'), dpi=300, bbox_inches='tight')
-    print("Time series plots saved as: time_series_plots.png")
+    plt.savefig(get_descriptive_plots_path('time_series_plots.png'), dpi=300, bbox_inches='tight')
+    print("Time series plots saved as: descriptive_plots/time_series_plots.png")
     
     return fig
 
@@ -153,8 +153,8 @@ def create_monthly_patterns(data):
     axes[1,1].set_ylabel('Number of Fires', fontsize=11)
     
     plt.tight_layout()
-    plt.savefig(get_output_path('monthly_patterns.png'), dpi=300, bbox_inches='tight')
-    print("Monthly patterns saved as: monthly_patterns.png")
+    plt.savefig(get_descriptive_plots_path('monthly_patterns.png'), dpi=300, bbox_inches='tight')
+    print("Monthly patterns saved as: descriptive_plots/monthly_patterns.png")
     
     return monthly_avg
 
@@ -228,14 +228,16 @@ def create_correlation_plots(data):
     axes[1,1].set_title('Correlation Matrix', fontsize=12, fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig(get_output_path('correlation_plots.png'), dpi=300, bbox_inches='tight')
-    print("Correlation plots saved as: correlation_plots.png")
+    plt.savefig(get_descriptive_plots_path('correlation_plots.png'), dpi=300, bbox_inches='tight')
+    print("Correlation plots saved as: descriptive_plots/correlation_plots.png")
     
     # Print correlation statistics
     print(f"\nCorrelation Statistics:")
     print(f"Fire vs Max Temp: r = {stats.pearsonr(data['count'], data['mean_max_temp'])[0]:.3f}")
     print(f"Fire vs Min Temp: r = {stats.pearsonr(data['count'], data['mean_min_temp'])[0]:.3f}")
     print(f"Fire vs Rainfall: r = {stats.pearsonr(data['count'], data['mean_rainfall'])[0]:.3f}")
+
+    return fig
 
 def analyze_model_results():
     """Analyze simulation model results if available"""

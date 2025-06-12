@@ -39,6 +39,16 @@ def get_descriptive_plots_path(filename):
     output_dir = get_output_dir()
     return os.path.join(output_dir, 'descriptive_plots', filename)
 
+def get_fire_data_path(filename):
+    """Get path for fire data files"""
+    # Use the root fire directory instead of creating one in our_output
+    return os.path.join('fire', filename)
+
+def get_climate_data_path(filename):
+    """Get path for climate data files"""
+    # Use the root climate directory instead of creating one in our_output
+    return os.path.join('climate', filename)
+
 def ensure_output_dirs():
     """Create all necessary output directories"""
     output_dir = get_output_dir()
@@ -50,6 +60,11 @@ def ensure_output_dirs():
     ]
     
     for dir_path in dirs_to_create:
-        os.makedirs(dir_path, exist_ok=True)
+        try:
+            os.makedirs(dir_path, exist_ok=True)
+            print(f"Ensured directory exists: {dir_path}")
+        except Exception as e:
+            print(f"Error creating directory {dir_path}: {e}")
+            raise
     
     return output_dir 

@@ -16,15 +16,15 @@ from rasterio.features import rasterize
 from shapely.geometry import Point
 import warnings
 warnings.filterwarnings('ignore')
-from output_utils import get_output_path, ensure_output_dirs
+from output_utils import get_output_path, ensure_output_dirs, get_fire_data_path, get_climate_data_path
 
 def import_merge_data():
     """Main function to import and merge MODIS and climate data"""
     
     # Create directories
     output_dir = ensure_output_dirs()
-    os.makedirs(get_output_path("fire"), exist_ok=True)
-    os.makedirs(get_output_path("climate"), exist_ok=True)
+    os.makedirs('fire', exist_ok=True)
+    os.makedirs('climate', exist_ok=True)
     
     # Import all MODIS files
     print("Importing MODIS fire data...")
@@ -51,11 +51,11 @@ def import_merge_data():
     grouped = modis_all.groupby(['year', 'month'])
     
     for (year, month), group in grouped:
-        filename = get_output_path(f"fire/fire_year_{year}-{month}.csv")
+        filename = get_fire_data_path(f"fire_year_{year}-{month}.csv")
         group.to_csv(filename, index=False)
     
     # Get file lists for processing
-    fire_files = glob.glob(get_output_path("fire/*.csv"))
+    fire_files = glob.glob(get_fire_data_path("*.csv"))
     tmax_files = sorted(glob.glob("./tmax/*.tif"))
     tmin_files = sorted(glob.glob("./tmin/*.tif"))
     rain_files = sorted(glob.glob("./rain/*.tif"))
@@ -111,7 +111,7 @@ def process_fire_climate(fire_file, tmax_file, tmin_file, rain_file):
     
     # Generate output filename
     base_name = os.path.basename(tmax_file).replace('.tif', '')
-    output_file = get_output_path(f"climate/fire-tmax_{base_name}.csv")
+    output_file = get_climate_data_path(f"fire-tmax_{base_name}.csv")
     
     # Save processed data
     fire_df.to_csv(output_file, index=False)
