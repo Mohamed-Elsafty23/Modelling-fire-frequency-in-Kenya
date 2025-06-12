@@ -198,24 +198,8 @@ def main():
     
     # Final summary
     total_elapsed = time.time() - total_start_time
-    
-    print("\n" + "="*80)
-    print("ALL MODEL EVALUATIONS COMPLETED!")
-    print("="*80)
-    
-    print(f"Total processing time: {total_elapsed/3600:.1f} hours")
-    
-    # List generated files
-    result_files = glob.glob(get_model_results_path("*_year_*_metrics.csv"))
-    result_files.sort()
-    
-    print(f"\nGenerated {len(result_files)} result files:")
-    for file in result_files:
-        size_mb = os.path.getsize(file) / (1024*1024)
-        print(f"  - {file} ({size_mb:.1f} MB)")
-    
-    print(f"\nResults saved in: {get_model_results_path(\"\")}")
-    print("Ready for analysis with 8_descriptive_stats.py and 9_sim_visualization.py!")
+    print(f"\nTotal processing time: {total_elapsed/60:.1f} minutes")
+    print(f"Results saved in: {get_model_results_path('')}")
 
 if __name__ == "__main__":
     main() 

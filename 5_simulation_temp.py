@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore')
 class FireClimateSimulator:
     """Class to simulate fire-climate data based on real data patterns"""
     
-    def __init__(self, data_file=get_output_path("fire_data_2000-18.csv")):
+    def __init__(self, data_file="fire_data_2000-18.csv"):
         """Initialize with real data to fit distributions"""
         try:
             self.real_data = pd.read_csv(data_file)

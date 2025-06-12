@@ -359,14 +359,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                    # Run normal pipeline
-  python main.py --force            # Force re-run all steps
+  python main.py                    # Run pipeline with force=True (default)
+  python main.py --no-force         # Run without forcing re-runs
   python main.py --skip-optional    # Skip optional model building steps
         """
     )
     
-    parser.add_argument('--force', action='store_true',
-                       help='Force re-run all steps (ignore existing outputs)')
+    parser.add_argument('--no-force', action='store_true',
+                       help='Do not force re-run all steps (ignore existing outputs)')
     parser.add_argument('--skip-optional', action='store_true',
                        help='Skip optional model building and fitting steps')
     
@@ -374,7 +374,7 @@ Examples:
     
     # Create and run pipeline
     pipeline = FireModelingPipeline(
-        force_rerun=args.force,
+        force_rerun=not args.no_force,  # Invert the no_force flag
         skip_optional=args.skip_optional
     )
     success = pipeline.run_pipeline()
