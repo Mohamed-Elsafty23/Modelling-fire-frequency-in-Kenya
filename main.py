@@ -178,10 +178,11 @@ class FireModelingPipeline:
             start_time = time.time()
             env = os.environ.copy()
             env['OUTPUT_DIR'] = self.output_dir
+            env['PYTHONIOENCODING'] = 'utf-8'  # Force UTF-8 encoding for subprocess
             
             result = subprocess.run([
                 sys.executable, script
-            ], capture_output=True, text=True, env=env)
+            ], capture_output=True, text=True, env=env, encoding='utf-8', errors='replace')
             
             duration = time.time() - start_time
             
@@ -189,29 +190,45 @@ class FireModelingPipeline:
                 print(f"✅ COMPLETED in {duration:.1f}s")
                 self.completed_steps.append(step_name)
                 
-                # Show some output (last few lines)
+                # Show some output (last few lines) with safe encoding
                 if result.stdout:
-                    output_lines = result.stdout.strip().split('\n')
-                    if len(output_lines) > 3:
-                        print("📋 Last output lines:")
-                        for line in output_lines[-3:]:
-                            print(f"   {line}")
+                    try:
+                        output_lines = result.stdout.strip().split('\n')
+                        if len(output_lines) > 3:
+                            print("📋 Last output lines:")
+                            for line in output_lines[-3:]:
+                                # Replace problematic characters
+                                safe_line = line.encode('ascii', 'replace').decode('ascii')
+                                print(f"   {safe_line}")
+                    except UnicodeError:
+                        print("   [Output contains non-ASCII characters - skipped display]")
                 
                 return True
             else:
                 print(f"❌ FAILED with return code {result.returncode}")
                 print("📋 Error output:")
                 if result.stderr:
-                    error_lines = result.stderr.strip().split('\n')
-                    for line in error_lines[-5:]:  # Show last 5 error lines
-                        print(f"   {line}")
+                    try:
+                        error_lines = result.stderr.strip().split('\n')
+                        for line in error_lines[-10:]:  # Show last 10 error lines
+                            safe_line = line.encode('ascii', 'replace').decode('ascii')
+                            print(f"   {safe_line}")
+                    except UnicodeError:
+                        print("   [Error output contains non-ASCII characters]")
                 
                 self.failed_steps.append(step_name)
+                # Print error summary and exit immediately
+                print(f"\n💥 PIPELINE STOPPED - Step '{step_name}' failed!")
+                print(f"📍 Failed at step {step_num}/{total_steps}")
+                print("🛑 Exiting pipeline execution...")
                 return False
                 
         except Exception as e:
             print(f"❌ EXCEPTION - {str(e)}")
             self.failed_steps.append(step_name)
+            print(f"\n💥 PIPELINE STOPPED - Exception in step '{step_name}'!")
+            print(f"📍 Failed at step {step_num}/{total_steps}")
+            print("🛑 Exiting pipeline execution...")
             return False
     
     def create_project_summary(self):
@@ -273,15 +290,18 @@ class FireModelingPipeline:
             if success:
                 success_count += 1
             else:
-                # Ask user if they want to continue
-                response = input(f"\n⚠️  Step failed. Continue with remaining steps? [y/N]: ")
-                if response.lower() != 'y':
-                    break
+                # Step failed - exit immediately
+                print(f"\n❌ PIPELINE EXECUTION TERMINATED")
+                print(f"✅ Completed: {success_count}/{total_steps} steps")
+                print(f"❌ Failed: {len(self.failed_steps)} steps")
+                
+                # Don't create summary for failed pipeline
+                return False
         
-        # Print final summary
+        # Print final summary (only if all steps completed)
         self.print_final_summary(success_count, total_steps)
         
-        # Create project summary
+        # Create project summary (only if all steps completed)
         self.create_project_summary()
         
         return len(self.failed_steps) == 0
