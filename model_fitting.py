@@ -607,16 +607,20 @@ def main(force_retrain=False):
             print("✅ Using existing trained models (skip --force to retrain)")
             
             # Generate test data for evaluation
+            print("📊 [90%] Generating test data for evaluation...")
             df = generate_synthetic_data(nt=360)
             fire_train, fire_test = split_synthetic_data(df)
             
             # Make predictions with loaded models
+            print("🔮 [95%] Making predictions with loaded models...")
             predictions = make_predictions(loaded_models, fire_test, loaded_p_means)
             
             # Calculate metrics
+            print("📈 [98%] Calculating performance metrics...")
             results_df = calculate_metrics(predictions, fire_test)
             
             # Save results
+            print("💾 [100%] Saving results...")
             output_file = get_output_path('model_fitting_results.csv')
             results_df.to_csv(output_file, index=False)
             print(f"Results saved as: {output_file}")
@@ -639,41 +643,57 @@ def main(force_retrain=False):
     print("🚀 TRAINING NEW MODELS...")
     
     # Generate synthetic data (equivalent to original workflow)
+    print("📊 [10%] Generating synthetic training data...")
     df = generate_synthetic_data(nt=360)
     
     # Split data
+    print("✂️  [15%] Splitting data into train/test sets...")
     fire_train, fire_test = split_synthetic_data(df)
     
     # Dictionary to store fitted models
     models = {}
     
     # Fit Standard Negative Binomial
+    print("🎯 [20%] Fitting Standard Negative Binomial model...")
     models['standard_nb'] = fit_standard_negative_binomial(fire_train)
+    print("✅ [40%] Standard NB model completed!")
     
     # Fit Bayesian Negative Binomial with MCMC
+    print("🔬 [40%] Fitting Bayesian Negative Binomial with MCMC...")
+    print("   ⏳ This may take several minutes for MCMC sampling...")
     models['bayesian_nb'] = fit_bayesian_negative_binomial_mcmc(fire_train)
+    print("✅ [70%] Bayesian NB model completed!")
     
     # Fit Enhanced Bayesian NB with time component
+    print("🚀 [70%] Fitting Enhanced Bayesian NB with time component...")
+    print("   ⏳ Final model training in progress...")
     enhanced_result = fit_enhanced_bayesian_nb(fire_train)
     if len(enhanced_result) == 2:
         models['enhanced_nb'], p_means = enhanced_result
     else:
         models['enhanced_nb'], _, p_means = enhanced_result
+    print("✅ [85%] Enhanced NB model completed!")
     
     # Save the trained models
+    print("💾 [85%] Saving trained models to disk...")
     save_models(models, p_means)
+    print("✅ [90%] Models saved successfully!")
     
     # Make predictions
+    print("🔮 [90%] Making predictions on test data...")
     predictions = make_predictions(models, fire_test, p_means)
     
     # Calculate and compare metrics
+    print("📈 [95%] Calculating performance metrics...")
     results_df = calculate_metrics(predictions, fire_test)
     
     # Save results
+    print("💾 [98%] Saving final results...")
     output_file = get_output_path('model_fitting_results.csv')
     results_df.to_csv(output_file, index=False)
     print(f"Results saved as: {output_file}")
     
+    print("✅ [100%] MODEL FITTING COMPLETED!")
     print("\n" + "="*60)
     print("MODEL FITTING COMPLETED")
     print("="*60)

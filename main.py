@@ -218,19 +218,19 @@ class FireModelingPipeline:
         """Create a summary of the project results"""
         summary_file = f"{self.output_dir}/project_summary.md"
         
-        with open(summary_file, 'w') as f:
+        with open(summary_file, 'w', encoding='utf-8') as f:
             f.write("# Fire Frequency Modeling Project - Execution Summary\n\n")
             f.write(f"**Execution Date:** {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"**Total Execution Time:** {(datetime.now() - self.start_time).total_seconds():.1f} seconds\n\n")
             
             f.write("## Completed Steps\n\n")
             for step in self.completed_steps:
-                f.write(f"- ✅ {step}\n")
+                f.write(f"- [x] {step}\n")
             
             if self.failed_steps:
                 f.write("\n## Failed Steps\n\n")
                 for step in self.failed_steps:
-                    f.write(f"- ❌ {step}\n")
+                    f.write(f"- [ ] {step}\n")
             
             f.write("\n## Generated Files\n\n")
             
@@ -245,7 +245,7 @@ class FireModelingPipeline:
             for file in key_files:
                 if os.path.exists(file):
                     file_size = os.path.getsize(file)
-                    f.write(f"- 📄 {file} ({file_size:,} bytes)\n")
+                    f.write(f"- File: {file} ({file_size:,} bytes)\n")
             
             # Check for directories
             key_dirs = [f'{self.output_dir}/simulated_data', f'{self.output_dir}/model_results', f'{self.output_dir}/descriptive_plots']
@@ -253,9 +253,9 @@ class FireModelingPipeline:
                 if os.path.isdir(dir_name):
                     file_count = len([f for f in os.listdir(dir_name) 
                                     if os.path.isfile(os.path.join(dir_name, f))])
-                    f.write(f"- 📁 {dir_name}/ ({file_count} files)\n")
+                    f.write(f"- Directory: {dir_name}/ ({file_count} files)\n")
         
-        print(f"📋 Project summary saved to: {summary_file}")
+        print(f"Project summary saved to: {summary_file}")
     
     def run_pipeline(self):
         """Run the complete pipeline"""
