@@ -2,6 +2,7 @@
 """
 Data aggregation script - Python version of 2data_aggregate.R
 Merges climate and fire data into final analysis dataset
+Enhanced to handle climate data from separate CSV folders
 """
 
 import pandas as pd
@@ -9,6 +10,54 @@ import numpy as np
 import glob
 from pathlib import Path
 from output_utils import get_output_path, ensure_output_dirs, get_climate_data_path
+import os
+
+def aggregate_climate_data():
+    """Aggregate climate data from separate CSV folders"""
+    print("Aggregating climate data from separate folders...")
+    
+    climate_folders = ['climate_tmax_csv', 'climate_tmin_csv', 'climate_rainfall_csv']
+    climate_summary = {}
+    
+    for folder in climate_folders:
+        if os.path.exists(folder):
+            csv_files = glob.glob(os.path.join(folder, "*.csv"))
+            print(f"Found {len(csv_files)} files in {folder}")
+            
+            # Aggregate data for this climate variable
+            all_data = []
+            for file in csv_files:
+                try:
+                    df = pd.read_csv(file)
+                    if len(df) > 0:
+                        all_data.append(df)
+                except Exception as e:
+                    print(f"Error reading {file}: {e}")
+                    continue
+            
+            if all_data:
+                combined_data = pd.concat(all_data, ignore_index=True)
+                
+                # Extract variable name
+                var_name = folder.replace('climate_', '').replace('_csv', '')
+                
+                # Calculate summary statistics by date
+                summary = combined_data.groupby('date').agg({
+                    var_name: ['mean', 'std', 'min', 'max', 'count']
+                }).reset_index()
+                
+                # Flatten column names
+                summary.columns = ['date', f'{var_name}_mean', f'{var_name}_std', 
+                                 f'{var_name}_min', f'{var_name}_max', f'{var_name}_count']
+                
+                climate_summary[var_name] = summary
+                
+                # Save individual climate summary
+                summary_file = os.path.join(folder, f"{var_name}_summary.csv")
+                summary.to_csv(summary_file, index=False)
+                print(f"Saved {var_name} summary to {summary_file}")
+    
+    return climate_summary
 
 def aggregate_data():
     """Aggregate all climate-fire data into single dataset"""
@@ -17,6 +66,11 @@ def aggregate_data():
     
     # Ensure output directory exists
     ensure_output_dirs()
+    
+    # Aggregate climate data from separate folders (optional)
+    if any(os.path.exists(folder) for folder in ['climate_tmax_csv', 'climate_tmin_csv', 'climate_rainfall_csv']):
+        climate_summary = aggregate_climate_data()
+        print("Climate data aggregation completed.")
     
     # Read all climate files
     climate_files = glob.glob(get_climate_data_path("*.csv"))

@@ -368,14 +368,14 @@ def negbinner(x, theta=1.5, n=60):
         # Return EXACTLY like R
         # R code: cbind(rmse_train = train_rmse, rmse_test = test_rmse, mase_test = test_mase,
         #               bias_test = test_bias, theta = theta, n = n)
-        return {
+            return {
             'rmse_train': train_rmse,
             'rmse_test': test_rmse, 
             'mase_test': test_mase,
             'bias_test': test_bias,
             'theta': theta,
             'n': n
-        }
+            }
             
     except Exception as e:
         print(f"Error in negbinner: {e}")
