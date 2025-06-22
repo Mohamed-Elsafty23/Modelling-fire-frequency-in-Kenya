@@ -168,6 +168,10 @@ def main():
     print("Python version of 7models_*.R scripts")
     print("="*80)
     
+    # Set seed EXACTLY like R scripts
+    # R code: set.seed(76568)
+    np.random.seed(76568)
+    
     # Time periods and corresponding months
     time_periods = {
         5: 60,    # 5 years = 60 months

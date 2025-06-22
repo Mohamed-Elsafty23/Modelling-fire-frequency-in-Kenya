@@ -18,7 +18,8 @@ pymc
 arviz
 
 # Time series analysis
-# tbats  # Alternative: use statsmodels seasonal decompose
+sktime  # TBATS model for seasonality detection (matching R implementation)
+# tbats  # Alternative: but has compatibility issues with recent NumPy versions
 
 # Visualization
 matplotlib
