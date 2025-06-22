@@ -10,6 +10,8 @@ import numpy as np
 from scipy import stats
 from scipy.stats import gamma, norm, truncnorm
 from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
+from statsmodels.discrete.discrete_model import NegativeBinomial
 import os
 from pathlib import Path
 import warnings
@@ -23,7 +25,7 @@ class FireClimateSimulator:
         try:
             self.real_data = pd.read_csv(data_file)
             self.fit_distributions()
-            self.fit_relationships()
+            # Note: fit_relationships is called later with specific theta parameter
         except FileNotFoundError:
             print(f"Error: {data_file} not found. Run 2_data_aggregate.py first.")
             raise
@@ -56,13 +58,19 @@ class FireClimateSimulator:
         print(f"Temperature parameters: mu={self.temp_params['mu']:.3f}, "
               f"sigma={self.temp_params['sigma']:.3f}")
     
-    def fit_relationships(self):
-        """Fit relationships between variables"""
-        data = self.real_data.dropna()
+    def fit_relationships(self, theta=1.5):
+        """Fit relationships between variables - matches R code exactly"""
+        # Select and rename columns to match R code
+        data = self.real_data[['mean_max_temp', 'mean_rainfall', 'count']].copy()
+        data.columns = ['max_temp', 'rainfall', 'count']
+        data = data.dropna()
         
-        # Fit linear relationship between max_temp and rainfall
-        X = data[['mean_max_temp']].values
-        y = data['mean_rainfall'].values
+        # Add tyme column (time index) - matches R code
+        data['tyme'] = range(1, len(data) + 1)
+        
+        # Fit linear relationship between max_temp and rainfall (for rainfall simulation)
+        X = data[['max_temp']].values
+        y = data['rainfall'].values
         
         self.rainfall_model = LinearRegression()
         self.rainfall_model.fit(X, y)
@@ -74,6 +82,43 @@ class FireClimateSimulator:
         print(f"Rainfall-temperature relationship: "
               f"slope={self.rainfall_model.coef_[0]:.3f}, "
               f"intercept={self.rainfall_model.intercept_:.3f}")
+        
+        # Fit negative binomial GLM for fire count - EXACTLY like R code
+        print("Fitting negative binomial GLM for fire count...")
+        
+        # Create seasonal terms exactly like R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
+        # Note: This matches the R formula exactly, including the unusual (2*12*pi/tyme) form
+        np.random.seed(42)  # For reproducible seasonal term noise
+        sin_noise = np.random.normal(0, 0.1)
+        cos_noise = np.random.normal(0, 0.1)
+        
+        data['sin_term'] = np.sin((2 * 12 * np.pi / data['tyme']) + sin_noise)
+        data['cos_term'] = np.cos((2 * 12 * np.pi / data['tyme']) + cos_noise)
+        
+        # Prepare design matrix for GLM
+        X_glm = data[['max_temp', 'rainfall', 'sin_term', 'cos_term']].copy()
+        X_glm = sm.add_constant(X_glm)  # Add intercept
+        y_glm = data['count']
+        
+        # Fit negative binomial GLM with log link (matching R's glm.nb)
+        self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial()).fit()
+        
+        # Store coefficients
+        self.fire_coefficients = {
+            'intercept': self.fire_model.params['const'],
+            'max_temp': self.fire_model.params['max_temp'],
+            'rainfall': self.fire_model.params['rainfall'],
+            'sin_term': self.fire_model.params['sin_term'],
+            'cos_term': self.fire_model.params['cos_term']
+        }
+        
+        # Store noise values used for seasonal terms
+        self.sin_noise = sin_noise
+        self.cos_noise = cos_noise
+        
+        print("Fire model coefficients:")
+        for name, coef in self.fire_coefficients.items():
+            print(f"  {name}: {coef:.6f}")
     
     def simulate_dataset(self, n_months=60, theta=1.5, seed=None):
         """
@@ -86,6 +131,12 @@ class FireClimateSimulator:
         """
         if seed is not None:
             np.random.seed(seed)
+        
+        # Fit the fire model with this specific theta (like R code does)
+        if not hasattr(self, 'current_theta') or self.current_theta != theta:
+            print(f"Fitting fire model with theta = {theta}")
+            self.fit_relationships(theta=theta)
+            self.current_theta = theta
         
         # Simulate max temperature using truncated normal
         a = (self.temp_params['min'] - self.temp_params['mu']) / self.temp_params['sigma']
@@ -109,37 +160,39 @@ class FireClimateSimulator:
         rainfall = rainfall_pred + errors
         rainfall = np.maximum(rainfall, 0)  # Ensure non-negative
         
-        # Create time index
+        # Create time index (tyme column like R code)
         time_idx = np.arange(1, n_months + 1)
         
-        # Add seasonal components
-        cos_term = np.cos(2 * np.pi * time_idx / 12 + np.random.normal(0, 0.1))
-        sin_term = np.sin(2 * np.pi * time_idx / 12 + np.random.normal(0, 0.1))
+        # Add seasonal components EXACTLY like R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
+        # Use the same noise values that were used during model fitting
+        sin_term = np.sin((2 * 12 * np.pi / time_idx) + self.sin_noise)
+        cos_term = np.cos((2 * 12 * np.pi / time_idx) + self.cos_noise)
         
-        # Simulate fire count using negative binomial with seasonal effects
-        # Log-linear model: log(mu) = intercept + b1*temp + b2*rain + b3*cos + b4*sin
-        log_mu = (5.6 +  # Base fire rate (log scale)
-                 0.05 * max_temp +  # Temperature effect
-                 -0.01 * rainfall +  # Rainfall effect (negative)
-                 0.3 * cos_term +   # Seasonal cosine
-                 0.2 * sin_term)    # Seasonal sine
+        # Simulate fire count using fitted coefficients from negative binomial GLM
+        # Log-linear model: log(mu) = intercept + b1*temp + b2*rain + b3*sin + b4*cos
+        log_mu = (self.fire_coefficients['intercept'] +
+                 self.fire_coefficients['max_temp'] * max_temp +
+                 self.fire_coefficients['rainfall'] * rainfall +
+                 self.fire_coefficients['sin_term'] * sin_term +
+                 self.fire_coefficients['cos_term'] * cos_term)
         
+    
+        
+        # Get predicted values (like R's predict(fm, dataclean, type = "response"))
         mu = np.exp(log_mu)
         
-        # Add noise to predicted values
-        if theta > 0:
-            # Convert theta to n, p parameterization for negative binomial
-            p = theta / (theta + mu)
-            n = theta
-            
-            # Simulate counts
-            count = np.random.negative_binomial(n, p)
-            
-            # Add additional residual errors
-            residual_errors = np.random.uniform(-2, 2, n_months)
-            count = np.maximum(np.round(mu + residual_errors), 0).astype(int)
-        else:
-            count = np.random.poisson(mu)
+        # Add residual errors exactly like R code
+        # R code: simulated_errors2 <- runif(length(y_count2), min = min(resid2), max = max(resid2))
+        # Use residuals from fitted model
+        resid_min = self.fire_model.resid_response.min()
+        resid_max = self.fire_model.resid_response.max()
+        
+        # Generate uniform errors within residual range
+        residual_errors = np.random.uniform(resid_min, resid_max, n_months)
+        
+        # Add errors to predicted values and round (matching R code exactly)
+        simulated_values = mu + residual_errors
+        count = np.maximum(np.round(simulated_values), 0).astype(int)
         
         # Create dataset
         dataset = pd.DataFrame({

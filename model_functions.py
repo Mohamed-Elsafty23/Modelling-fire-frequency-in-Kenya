@@ -12,7 +12,9 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from model_definitions import negbinner, stanbinner
+    # Import from the actual 6_final_models.py file
+    exec(open('6_final_models.py').read().split('if __name__')[0])
+    # Functions negbinner and stanbinner are now available
 except ImportError:
     # Fallback - define simplified versions if main module not available
     import pandas as pd

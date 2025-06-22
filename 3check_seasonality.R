@@ -36,5 +36,4 @@ seasonal_tmin <- !is.null(fit_tmin$seasonal)
 fit_rain <- tbats(rain_ts)
 seasonal_rain <- !is.null(fit_rain$seasonal)
 
-
 # The data has seasonality

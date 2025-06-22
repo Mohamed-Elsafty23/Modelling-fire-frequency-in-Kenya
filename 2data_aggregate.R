@@ -28,7 +28,7 @@ fire_data <-
             mean_rainfall = mean(rainfall, na.rm = T),
             anomaly = mean_max_temp - mean_min_temp,
             average_temp = mean(mean_min_temp,mean_max_temp)) %>% 
-  # arrange
+  # arrange 
   arrange(year)
 
 # Write final dataset

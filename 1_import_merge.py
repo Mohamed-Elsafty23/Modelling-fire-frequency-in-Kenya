@@ -65,21 +65,54 @@ def import_merge_data():
     print(f"Found {len(tmin_files)} tmin files") 
     print(f"Found {len(rain_files)} rain files")
     
-    # Process each fire file with corresponding climate data
-    print("Processing fire-climate intersections...")
+    # Create date-based mapping for proper file matching
+    def extract_date_from_climate_file(filename):
+        basename = os.path.basename(filename)
+        parts = basename.split('_')
+        if len(parts) > 1:
+            return parts[1].replace('.tif', '')
+        return None
     
-    for i, fire_file in enumerate(fire_files):
-        if i >= len(tmax_files) or i >= len(tmin_files) or i >= len(rain_files):
-            print(f"Skipping {fire_file} - no corresponding climate data")
-            continue
+    # Create mappings: date -> filepath
+    tmax_map = {extract_date_from_climate_file(f): f for f in tmax_files if extract_date_from_climate_file(f)}
+    tmin_map = {extract_date_from_climate_file(f): f for f in tmin_files if extract_date_from_climate_file(f)}
+    rain_map = {extract_date_from_climate_file(f): f for f in rain_files if extract_date_from_climate_file(f)}
+    
+    # Find common dates with all climate variables
+    common_dates = set(tmax_map.keys()) & set(tmin_map.keys()) & set(rain_map.keys())
+    print(f"Climate data available for {len(common_dates)} months")
+    
+    # Process each fire file with date-based matching
+    print("Processing fire-climate intersections with date matching...")
+    processed_count = 0
+    
+    for fire_file in fire_files:
+        # Extract date from fire filename: fire_year_2000-11.csv
+        basename = os.path.basename(fire_file)
+        parts = basename.replace('.csv', '').split('_')
+        if len(parts) >= 3:
+            fire_date = parts[2]  # e.g., "2000-11" or "2001-1"
             
-        try:
-            process_fire_climate(fire_file, tmax_files[i], tmin_files[i], rain_files[i])
-            if i % 10 == 0:
-                print(f"Processed {i+1}/{len(fire_files)} files")
-        except Exception as e:
-            print(f"Error processing {fire_file}: {e}")
-            continue
+            # Normalize fire date to match climate date format (YYYY-MM)
+            if '-' in fire_date:
+                year, month = fire_date.split('-')
+                fire_date_normalized = f"{year}-{month.zfill(2)}"
+            else:
+                fire_date_normalized = fire_date
+            
+            if fire_date_normalized in common_dates:
+                try:
+                    process_fire_climate(fire_file, tmax_map[fire_date_normalized], tmin_map[fire_date_normalized], rain_map[fire_date_normalized])
+                    processed_count += 1
+                    if processed_count % 20 == 0:
+                        print(f"Processed {processed_count} date-matched files...")
+                except Exception as e:
+                    print(f"Error processing {fire_date}: {e}")
+                    continue
+            else:
+                print(f"No climate data for {fire_date}")
+    
+    print(f"Successfully processed {processed_count} files with proper date matching")
 
 def process_fire_climate(fire_file, tmax_file, tmin_file, rain_file):
     """Process individual fire file with climate data"""

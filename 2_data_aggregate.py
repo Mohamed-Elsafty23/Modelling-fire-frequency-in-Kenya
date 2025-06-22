@@ -25,15 +25,23 @@ def aggregate_data():
         print("No climate files found! Run 1_import_merge.py first.")
         return
     
+    print(f"Found {len(climate_files)} climate files to process")
+    
     # Read and combine all files
     fire_all = []
+    processed_files = 0
+    
     for file in climate_files:
         try:
             df = pd.read_csv(file)
-            fire_all.append(df)
+            if len(df) > 0:
+                fire_all.append(df)
+                processed_files += 1
         except Exception as e:
             print(f"Error reading {file}: {e}")
             continue
+    
+    print(f"Successfully read {processed_files} files")
     
     if not fire_all:
         print("No valid data files found!")
@@ -42,8 +50,12 @@ def aggregate_data():
     # Combine all datasets
     fire_all = pd.concat(fire_all, ignore_index=True)
     
-    print(f"Total combined records: {len(fire_all)}")
-    print(fire_all.head())
+    print(f"Total combined records: {len(fire_all):,}")
+    
+    # Check data quality
+    print(f"Records with max_temp: {(~fire_all['max_temp'].isna()).sum():,}")
+    print(f"Records with min_temp: {(~fire_all['min_temp'].isna()).sum():,}")
+    print(f"Records with rainfall: {(~fire_all['rainfall'].isna()).sum():,}")
     
     # Group by month and year and calculate summary statistics
     print("Calculating monthly aggregates...")
@@ -72,6 +84,15 @@ def aggregate_data():
     fire_data = fire_data.sort_values(['year', 'month']).reset_index(drop=True)
     
     print(f"Final aggregated dataset shape: {fire_data.shape}")
+    
+    # Show data coverage by year
+    print("\nData coverage by year:")
+    year_coverage = fire_data.groupby('year').size()
+    for year, months in year_coverage.items():
+        print(f"  {year}: {months} months")
+    
+    print(f"\nDate range: {fire_data['year'].min()}-{fire_data['month'].min():02d} to {fire_data['year'].max()}-{fire_data['month'].max():02d}")
+    
     print("\nSummary statistics:")
     print(fire_data[['count', 'mean_max_temp', 'mean_min_temp', 'mean_rainfall']].describe())
     
