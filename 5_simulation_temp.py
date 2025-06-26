@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 class FireClimateSimulator:
     """Class to simulate fire-climate data based on real data patterns"""
     
-    def __init__(self, data_file="fire_data_2000-18.csv"):
+    def __init__(self, data_file="fire_data_2000-18_new.csv"):
         """Initialize with real data to fit distributions"""
         try:
             self.real_data = pd.read_csv(data_file)
@@ -61,12 +61,14 @@ class FireClimateSimulator:
     def fit_relationships(self, theta=1.5):
         """Fit relationships between variables - matches R code exactly"""
         # Select and rename columns to match R code
-        data = self.real_data[['mean_max_temp', 'mean_rainfall', 'count']].copy()
-        data.columns = ['max_temp', 'rainfall', 'count']
+        # CHANGED: added month
+        data = self.real_data[['mean_max_temp', 'mean_rainfall', 'count', 'month']].copy()
+        data.columns = ['max_temp', 'rainfall', 'count', 'month']
         data = data.dropna()
         
         # Add tyme column (time index) - matches R code
-        data['tyme'] = range(1, len(data) + 1)
+        # CHANGED: data['tyme'] = range(1, len(data) + 1)
+
         
         # Fit linear relationship between max_temp and rainfall (for rainfall simulation)
         X = data[['max_temp']].values
@@ -92,8 +94,9 @@ class FireClimateSimulator:
         sin_noise = np.random.normal(0, 0.1)
         cos_noise = np.random.normal(0, 0.1)
         
-        data['sin_term'] = np.sin((2 * 12 * np.pi / data['tyme']) + sin_noise)
-        data['cos_term'] = np.cos((2 * 12 * np.pi / data['tyme']) + cos_noise)
+        # CHANGED tyme to month
+        data['sin_term'] = np.sin((2 * 12 * np.pi / data['month']) + sin_noise)
+        data['cos_term'] = np.cos((2 * 12 * np.pi / data['month']) + cos_noise)
         
         # Prepare design matrix for GLM
         X_glm = data[['max_temp', 'rainfall', 'sin_term', 'cos_term']].copy()
@@ -101,7 +104,8 @@ class FireClimateSimulator:
         y_glm = data['count']
         
         # Fit negative binomial GLM with log link (matching R's glm.nb)
-        self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial()).fit()
+        # CHANGED: self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial()).fit()
+        self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial(alpha=1/theta)).fit()
         
         # Store coefficients
         self.fire_coefficients = {
@@ -162,11 +166,13 @@ class FireClimateSimulator:
         
         # Create time index (tyme column like R code)
         time_idx = np.arange(1, n_months + 1)
+        month = ((time_idx - 1) % 12) + 1  # CHANGED: Generate months 1–12 cyclically
         
         # Add seasonal components EXACTLY like R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
         # Use the same noise values that were used during model fitting
-        sin_term = np.sin((2 * 12 * np.pi / time_idx) + self.sin_noise)
-        cos_term = np.cos((2 * 12 * np.pi / time_idx) + self.cos_noise)
+        # CHANGED time_idx to month
+        sin_term = np.sin((2 * 12 * np.pi / month) + self.sin_noise)
+        cos_term = np.cos((2 * 12 * np.pi / month) + self.cos_noise)
         
         # Simulate fire count using fitted coefficients from negative binomial GLM
         # Log-linear model: log(mu) = intercept + b1*temp + b2*rain + b3*sin + b4*cos
@@ -199,7 +205,8 @@ class FireClimateSimulator:
             'max_temp': max_temp,
             'rainfall': rainfall,
             'count': count,
-            'tyme': time_idx
+            'tyme': time_idx,
+            'month': month # CHANGED: added month
         })
         
         return dataset
