@@ -28,10 +28,10 @@ def check_seasonality():
         series_data = pd.read_csv("fire_data_2000-18.csv")
     except FileNotFoundError:
         try:
-        series_data = pd.read_csv(get_output_path("fire_data_2000-18.csv"))
-    except FileNotFoundError:
-        print("Error: fire_data_2000-18.csv not found. Run 2_data_aggregate.py first.")
-        return
+            series_data = pd.read_csv(get_output_path("fire_data_2000-18.csv"))
+        except FileNotFoundError:
+            print("Error: fire_data_2000-18.csv not found. Run 2_data_aggregate.py first.")
+            return
     
     print(f"Data shape: {series_data.shape}")
     print(series_data.head())
@@ -83,14 +83,14 @@ def check_seasonality():
     
     if tbats_available:
         # Use TBATS for seasonality detection (matching R approach)
-    for var, label in variables.items():
+        for var, label in variables.items():
             print(f"\nAnalyzing {label} ({var}) with TBATS...")
         
-        # Extract time series
-        ts = series_data[var].dropna()
-        
-        if len(ts) < 24:  # Need at least 2 years for seasonal analysis
-            print(f"Insufficient data for {var}")
+            # Extract time series
+            ts = series_data[var].dropna()
+            
+            if len(ts) < 24:  # Need at least 2 years for seasonal analysis
+                print(f"Insufficient data for {var}")
                 seasonality_results[var] = {
                     'has_seasonality': False,
                     'method': 'insufficient_data',
@@ -152,7 +152,7 @@ def check_seasonality():
                             error = result_container.get('error', 'Unknown error')
                             print(f"  TBATS fitting failed: {error}")
                             seasonality_results[var] = fallback_seasonality_analysis(ts, var)
-            continue
+                            continue
                         
                         fitted_model = result_container['fitted_model']
                         
@@ -259,18 +259,18 @@ def fallback_seasonality_analysis(ts, var_name):
         from statsmodels.tsa.stattools import acf
         
         # Method 1: Seasonal decomposition
-            decomposition = seasonal_decompose(ts, model='additive', period=12)
-            seasonal_component = decomposition.seasonal 
-            
-            # Test if seasonal component is significantly different from zero
-            seasonal_var = np.var(seasonal_component.dropna())
-            residual_var = np.var(decomposition.resid.dropna())
-            
-            # F-test for seasonality
-            if residual_var > 0:
-                f_stat = seasonal_var / residual_var
-                seasonal_significant = f_stat > 1.5  # Simple threshold
-            else:
+        decomposition = seasonal_decompose(ts, model='additive', period=12)
+        seasonal_component = decomposition.seasonal 
+        
+        # Test if seasonal component is significantly different from zero
+        seasonal_var = np.var(seasonal_component.dropna())
+        residual_var = np.var(decomposition.resid.dropna())
+        
+        # F-test for seasonality
+        if residual_var > 0:
+            f_stat = seasonal_var / residual_var
+            seasonal_significant = f_stat > 1.5  # Simple threshold
+        else:
             seasonal_significant = False
         
         # Method 2: Monthly variance analysis
@@ -282,8 +282,8 @@ def fallback_seasonality_analysis(ts, var_name):
         variance_ratio = monthly_var / overall_var if overall_var > 0 else 0
         
         # Method 3: Autocorrelation at lag 12
-            autocorr = acf(ts, nlags=12, fft=True)
-            lag12_autocorr = abs(autocorr[12]) if len(autocorr) > 12 else 0
+        autocorr = acf(ts, nlags=12, fft=True)
+        lag12_autocorr = abs(autocorr[12]) if len(autocorr) > 12 else 0
         
         # Combine evidence for seasonality
         seasonality_evidence = {
