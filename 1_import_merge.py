@@ -215,9 +215,10 @@ def process_fire_climate(fire_file, tmax_file, tmin_file, rain_file):
     fire_df['min_temp'] = np.where(fire_df['min_temp'] > 0, fire_df['min_temp'], np.nan)
     fire_df['rainfall'] = np.where(fire_df['rainfall'] > 0, fire_df['rainfall'], np.nan)
     
-    # Generate output filename
+    # Generate output filename - extract date from tmax file and create consistent naming
     base_name = os.path.basename(tmax_file).replace('.tif', '')
-    output_file = get_climate_data_path(f"fire-tmax_{base_name}.csv")
+    date_part = base_name.replace('tmax_', '')  # Extract just the date part (e.g., "2018-12")
+    output_file = get_climate_data_path(f"fire-climate_{date_part}.csv")
     
     # Save processed data
     fire_df.to_csv(output_file, index=False)
