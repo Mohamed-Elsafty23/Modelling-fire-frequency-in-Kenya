@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 class FireClimateSimulator:
     """Class to simulate fire-climate data based on real data patterns"""
     
-    def __init__(self, data_file="fire_data_2000-18_new.csv"):
+    def __init__(self, data_file="fire_data_2000-18.csv"):
         """Initialize with real data to fit distributions"""
         try:
             self.real_data = pd.read_csv(data_file)
@@ -79,7 +79,7 @@ class FireClimateSimulator:
         
         # Calculate residuals for error simulation
         y_pred = self.rainfall_model.predict(X)
-        self.rainfall_residuals = y - y_pred
+        self.rainfall_residuals = np.round(y - y_pred, 5) # 5 signifigant figures
         
         print(f"Rainfall-temperature relationship: "
               f"slope={self.rainfall_model.coef_[0]:.3f}, "
@@ -94,9 +94,9 @@ class FireClimateSimulator:
         sin_noise = np.random.normal(0, 0.1)
         cos_noise = np.random.normal(0, 0.1)
         
-        # CHANGED tyme to month
-        data['sin_term'] = np.sin((2 * 12 * np.pi / data['month']) + sin_noise)
-        data['cos_term'] = np.cos((2 * 12 * np.pi / data['month']) + cos_noise)
+        # CHANGED tyme to month & corrected seasonality formula
+        data['sin_term'] = np.sin((2 * np.pi * data['month'] / 12) + sin_noise)
+        data['cos_term'] = np.cos((2 * np.pi * data['month'] / 12) + cos_noise)
         
         # Prepare design matrix for GLM
         X_glm = data[['max_temp', 'rainfall', 'sin_term', 'cos_term']].copy()
@@ -154,13 +154,18 @@ class FireClimateSimulator:
         # Simulate rainfall based on temperature relationship + random error
         rainfall_pred = self.rainfall_model.predict(max_temp.reshape(-1, 1))
         
-        # Add random errors
-        if len(self.rainfall_residuals) > 0:
-            error_min, error_max = self.rainfall_residuals.min(), self.rainfall_residuals.max()
-            errors = np.random.uniform(error_min, error_max, n_months)
-        else:
-            errors = np.random.normal(0, 10, n_months)  # Default error
-        
+        # CHANGED this section
+        # Adding residual errors
+        # Set bounds for binning residuals
+        error_min, error_max = self.rainfall_residuals.min(), self.rainfall_residuals.max()
+        bounds = np.arange(error_min, error_max + 0.2, 0.2)
+
+        # Compute relative frequency of residuals across bins
+        resid_binned = pd.cut(self.rainfall_residuals, bins=bounds)
+        error_distribution = resid_binned.value_counts().sort_index()
+
+        # Generate uniform random errors over the residual range
+        errors = np.random.uniform(low=error_min, high=error_max, size=len(rainfall_pred))
         rainfall = rainfall_pred + errors
         rainfall = np.maximum(rainfall, 0)  # Ensure non-negative
         
@@ -168,11 +173,11 @@ class FireClimateSimulator:
         time_idx = np.arange(1, n_months + 1)
         month = ((time_idx - 1) % 12) + 1  # CHANGED: Generate months 1–12 cyclically
         
-        # Add seasonal components EXACTLY like R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
+        # Add corrected seasonal components (vs. R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
         # Use the same noise values that were used during model fitting
         # CHANGED time_idx to month
-        sin_term = np.sin((2 * 12 * np.pi / month) + self.sin_noise)
-        cos_term = np.cos((2 * 12 * np.pi / month) + self.cos_noise)
+        sin_term = np.sin((2 * np.pi * month / 12) + self.sin_noise)
+        cos_term = np.cos((2  * np.pi * month / 12) + self.cos_noise)
         
         # Simulate fire count using fitted coefficients from negative binomial GLM
         # Log-linear model: log(mu) = intercept + b1*temp + b2*rain + b3*sin + b4*cos
