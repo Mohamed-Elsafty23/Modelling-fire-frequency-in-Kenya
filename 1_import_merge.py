@@ -2,6 +2,7 @@
 """
 Import and merge files - Python version of 1import_merge.R
 Processes MODIS fire data and merges with climate data (rainfall, tmax, tmin)
+Enhanced to store climate data in separate folders before merging
 """
 
 import pandas as pd
@@ -18,6 +19,74 @@ import warnings
 warnings.filterwarnings('ignore')
 from output_utils import get_output_path, ensure_output_dirs, get_fire_data_path, get_climate_data_path
 
+def create_climate_folders():
+    """Create separate folders for climate data storage"""
+    climate_folders = ['climate_tmax_csv', 'climate_tmin_csv', 'climate_rainfall_csv']
+    for folder in climate_folders:
+        os.makedirs(folder, exist_ok=True)
+    return climate_folders
+
+def extract_climate_to_csv():
+    """Extract climate data from TIFF files and store as CSV in separate folders"""
+    print("Extracting climate data from TIFF files...")
+    
+    # Create climate folders
+    create_climate_folders()
+    
+    # Get climate files
+    tmax_files = sorted(glob.glob("./tmax/*.tif"))
+    tmin_files = sorted(glob.glob("./tmin/*.tif"))
+    rain_files = sorted(glob.glob("./rain/*.tif"))
+    
+    print(f"Processing {len(tmax_files)} tmax, {len(tmin_files)} tmin, {len(rain_files)} rain files")
+    
+    # Process each climate variable
+    for file_list, folder, var_name in [
+        (tmax_files, 'climate_tmax_csv', 'tmax'),
+        (tmin_files, 'climate_tmin_csv', 'tmin'), 
+        (rain_files, 'climate_rainfall_csv', 'rainfall')
+    ]:
+        print(f"Processing {var_name} files...")
+        for tif_file in file_list:
+            try:
+                # Extract date from filename
+                basename = os.path.basename(tif_file)
+                date_part = basename.split('_')[1].replace('.tif', '')
+                
+                # Read raster and convert to CSV
+                with rasterio.open(tif_file) as src:
+                    # Read the raster data
+                    data = src.read(1)
+                    transform = src.transform
+                    
+                    # Get coordinates for each pixel
+                    rows, cols = np.where(~np.isnan(data))
+                    
+                    # Convert pixel coordinates to geographic coordinates
+                    lons, lats = rasterio.transform.xy(transform, rows, cols)
+                    values = data[rows, cols]
+                    
+                    # Create DataFrame
+                    climate_df = pd.DataFrame({
+                        'latitude': lats,
+                        'longitude': lons,
+                        var_name: values,
+                        'date': date_part
+                    })
+                    
+                    # Filter out invalid values
+                    climate_df = climate_df[climate_df[var_name] > 0]
+                    
+                    # Save to CSV
+                    output_file = os.path.join(folder, f"{var_name}_{date_part}.csv")
+                    climate_df.to_csv(output_file, index=False)
+                    
+            except Exception as e:
+                print(f"Error processing {tif_file}: {e}")
+                continue
+    
+    print("Climate data extraction completed!")
+
 def import_merge_data():
     """Main function to import and merge MODIS and climate data"""
     
@@ -25,6 +94,10 @@ def import_merge_data():
     output_dir = ensure_output_dirs()
     os.makedirs('fire', exist_ok=True)
     os.makedirs('climate', exist_ok=True)
+    
+    # Extract climate data first if not already done
+    if not os.path.exists('climate_tmax_csv') or len(os.listdir('climate_tmax_csv')) == 0:
+        extract_climate_to_csv()
     
     # Import all MODIS files
     print("Importing MODIS fire data...")
@@ -142,9 +215,10 @@ def process_fire_climate(fire_file, tmax_file, tmin_file, rain_file):
     fire_df['min_temp'] = np.where(fire_df['min_temp'] > 0, fire_df['min_temp'], np.nan)
     fire_df['rainfall'] = np.where(fire_df['rainfall'] > 0, fire_df['rainfall'], np.nan)
     
-    # Generate output filename
+    # Generate output filename - extract date from tmax file and create consistent naming
     base_name = os.path.basename(tmax_file).replace('.tif', '')
-    output_file = get_climate_data_path(f"fire-tmax_{base_name}.csv")
+    date_part = base_name.replace('tmax_', '')  # Extract just the date part (e.g., "2018-12")
+    output_file = get_climate_data_path(f"fire-climate_{date_part}.csv")
     
     # Save processed data
     fire_df.to_csv(output_file, index=False)

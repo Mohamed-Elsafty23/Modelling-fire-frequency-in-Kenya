@@ -192,7 +192,7 @@ class FireClimateSimulator:
         # Use residuals from fitted model
         resid_min = self.fire_model.resid_response.min()
         resid_max = self.fire_model.resid_response.max()
-        
+            
         # Generate uniform errors within residual range
         residual_errors = np.random.uniform(resid_min, resid_max, n_months)
         
