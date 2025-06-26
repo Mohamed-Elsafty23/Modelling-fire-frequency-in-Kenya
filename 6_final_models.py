@@ -150,8 +150,15 @@ def stanbinner(x, theta=1.5, n=60):
         # Join means to test data EXACTLY like R
         # R code: fireTest2 <- fireTest %>% inner_join(p_means, by = "time")
         fireTest2 = fireTest.merge(p_means, on='time', how='inner')
-        
+
         # >>> CHANGED/ADDED: Define and fit Bayesian Negative Binomial model using PyMC
+        # Standardize predictors
+        for col in ['max_temp', 'rainfall', 'costhet', 'sinthet']:
+            mean = fireTrain2[col].mean()
+            std = fireTrain2[col].std()
+            fireTrain2[col] = (fireTrain2[col] - mean) / std
+            fireTest2[col] = (fireTest2[col] - mean) / std
+
         with pm.Model() as model:
             # Priors (rstanarm defaults)
             alpha = pm.Normal('alpha', mu=0, sigma=2.5)
@@ -175,7 +182,8 @@ def stanbinner(x, theta=1.5, n=60):
             obs = pm.NegativeBinomial('obs', mu=mu, alpha=alpha_nb, observed=fireTrain2['count'].values)
 
             # Sample
-            trace = pm.sample(1000, tune=500, random_seed=456, progressbar=False, return_inferencedata=True)
+            trace = pm.sample(500, tune=250, random_seed=456, progressbar=True, return_inferencedata=True,
+                              target_accept=0.9, chains=2, cores=1)
 
         # >>> CHANGED/ADDED: Posterior predictions
         def predict_posterior(data, trace, n_samples=100):
