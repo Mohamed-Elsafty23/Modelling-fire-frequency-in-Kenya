@@ -183,7 +183,7 @@ def stanbinner(x, theta=1.5, n=60):
 
             # Sample
             trace = pm.sample(500, tune=250, random_seed=456, progressbar=True, return_inferencedata=True,
-                              target_accept=0.9, chains=2, cores=1)
+                              target_accept=0.9, chains=4, cores=1)
 
         # >>> CHANGED/ADDED: Posterior predictions
         def predict_posterior(data, trace, n_samples=100):
