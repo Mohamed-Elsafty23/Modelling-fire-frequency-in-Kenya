@@ -170,14 +170,16 @@ def aggregate_data():
                     'frp': 'mean',
                     'max_temp': 'mean',
                     'min_temp': 'mean',
-                    'rainfall': 'mean'
+                    'rainfall': 'mean',
+                    'latitude': 'mean',
+                    'longitude': 'mean'
                 })
                 .reset_index())
     
     # Flatten column names
     fire_data.columns = ['month', 'year', 'count', 'mean_brightness', 
                         'mean_bright31', 'mean_frp', 'mean_max_temp', 
-                        'mean_min_temp', 'mean_rainfall']
+                        'mean_min_temp', 'mean_rainfall', 'mean_latitude', 'mean_longitude']
     
     # Calculate derived variables
     fire_data['anomaly'] = fire_data['mean_max_temp'] - fire_data['mean_min_temp']
@@ -197,7 +199,7 @@ def aggregate_data():
     print(f"\nDate range: {fire_data['year'].min()}-{fire_data['month'].min():02d} to {fire_data['year'].max()}-{fire_data['month'].max():02d}")
     
     print("\nSummary statistics:")
-    print(fire_data[['count', 'mean_max_temp', 'mean_min_temp', 'mean_rainfall']].describe())
+    print(fire_data[['count', 'mean_max_temp', 'mean_min_temp', 'mean_rainfall', 'mean_latitude', 'mean_longitude']].describe())
     
     # Save final dataset to root directory
     output_file = "fire_data_2000-18.csv"
