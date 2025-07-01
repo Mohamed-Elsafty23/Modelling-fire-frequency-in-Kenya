@@ -108,7 +108,7 @@ class LocationCategorizer:
         except Exception as e:
             print(f"Could not get Kenya boundaries from Nominatim API: {e}")
             return None
-    
+        
     def calculate_center_from_data(self, df):
         """
         Calculate the center point from the data itself.
