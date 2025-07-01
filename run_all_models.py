@@ -244,25 +244,8 @@ def get_optimal_workers():
 def process_single_file_optimized(file_path, model_func, theta, n_months):
     """Process a single simulated dataset file with available optimizations"""
     try:
-        # Read data with available optimization
-        if GPU_AVAILABLE:
-            try:
-                # Try GPU-accelerated reading if available
-                if 'cudf' in globals():
-                    data = cudf.read_csv(file_path)
-                    # Convert to pandas if model doesn't support cuDF
-                    if not hasattr(model_func, '_supports_cudf'):
-                        data = data.to_pandas()
-                else:
-                    # Fallback to pandas
-                    data = pd.read_csv(file_path)
-            except Exception as e:
-                # If GPU fails, fallback to pandas
-                print(f"GPU reading failed, using pandas: {e}")
-                data = pd.read_csv(file_path)
-        else:
-            # Standard optimized pandas reading
-            data = pd.read_csv(file_path)
+        # Read data with standard pandas (GPU disabled due to driver issues)
+        data = pd.read_csv(file_path)
         
         # Run model
         result = model_func(data, theta=theta, n=n_months)
