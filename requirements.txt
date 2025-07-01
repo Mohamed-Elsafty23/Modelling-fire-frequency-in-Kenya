@@ -56,3 +56,7 @@ bambi  # High-level Bayesian modeling
 cmdstanpy  # Stan interface for Python 
 
 
+numba>=0.56.0
+scipy>=1.8.0
+scikit-learn>=1.1.0
+psutil>=5.8.0

@@ -12,6 +12,9 @@ import statsmodels.api as sm
 from statsmodels.discrete.discrete_model import NegativeBinomial
 import pymc as pm
 import warnings
+import sys
+import io
+import contextlib
 warnings.filterwarnings('ignore')
 
 def negbinner(x, theta=1.5, n=60):
@@ -43,7 +46,9 @@ def negbinner(x, theta=1.5, n=60):
         X_train_const = sm.add_constant(X_train)
         
         # CHANGED to a negative binomial model that estimates the dispersion
-        glmNB = NegativeBinomial(y_train, X_train_const).fit()
+        # SUPPRESS optimization messages
+        with contextlib.redirect_stdout(io.StringIO()):
+            glmNB = NegativeBinomial(y_train, X_train_const).fit(disp=0)
         
         # Predict on training set EXACTLY like R
         # R code: predictions_train <- predict(glmNB, newdata = fireTrain, type = "response")
@@ -182,7 +187,7 @@ def stanbinner(x, theta=1.5, n=60):
             obs = pm.NegativeBinomial('obs', mu=mu, alpha=alpha_nb, observed=fireTrain2['count'].values)
 
             # Sample
-            trace = pm.sample(500, tune=250, random_seed=456, progressbar=True, return_inferencedata=True,
+            trace = pm.sample(500, tune=250, random_seed=456, progressbar=False, return_inferencedata=True,
                               target_accept=0.9, chains=4, cores=1)
 
         # >>> CHANGED/ADDED: Posterior predictions
