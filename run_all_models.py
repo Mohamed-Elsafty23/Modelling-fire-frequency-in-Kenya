@@ -54,8 +54,23 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TF logging
 try:
     import cupy as cp
     import cudf
-    GPU_AVAILABLE = True
-    GPU_MESSAGE = "✅ GPU acceleration available (CuPy/cuDF)"
+    # Test if cuDF actually works (compute capability check)
+    try:
+        # Try a simple cuDF operation to verify compatibility
+        test_df = cudf.DataFrame({'test': [1, 2, 3]})
+        GPU_AVAILABLE = True
+        GPU_MESSAGE = "✅ GPU acceleration available (CuPy/cuDF) - T4 compatible"
+        
+        # Check for multiple GPUs
+        gpu_count = cp.cuda.runtime.getDeviceCount()
+        if gpu_count > 1:
+            GPU_MESSAGE = f"✅ Multi-GPU acceleration available ({gpu_count}x GPUs with CuPy/cuDF)"
+        
+    except Exception as e:
+        # cuDF import succeeded but doesn't work (e.g., P100 with CC 6.0)
+        GPU_AVAILABLE = False
+        GPU_MESSAGE = f"⚠️  GPU hardware incompatible with cuDF (need CC 7.0+) - using CPU optimization"
+        
 except ImportError as e:
     if "CUDA" in str(e) or "cuda" in str(e):
         GPU_MESSAGE = "⚠️  CUDA not properly installed - using CPU optimization only"
@@ -66,15 +81,22 @@ except ImportError as e:
             physical_devices = tf.config.experimental.list_physical_devices('GPU')
             if len(physical_devices) > 0:
                 GPU_AVAILABLE = True
-                GPU_MESSAGE = "✅ GPU acceleration available (TensorFlow)"
+                if len(physical_devices) > 1:
+                    GPU_MESSAGE = f"✅ Multi-GPU acceleration available ({len(physical_devices)}x GPUs with TensorFlow)"
+                else:
+                    GPU_MESSAGE = "✅ GPU acceleration available (TensorFlow)"
             else:
                 GPU_MESSAGE = "⚠️  TensorFlow found but no GPU detected - using CPU optimization only"
         except ImportError:
             try:
                 import torch
                 if torch.cuda.is_available():
+                    gpu_count = torch.cuda.device_count()
                     GPU_AVAILABLE = True
-                    GPU_MESSAGE = "✅ GPU acceleration available (PyTorch)"
+                    if gpu_count > 1:
+                        GPU_MESSAGE = f"✅ Multi-GPU acceleration available ({gpu_count}x GPUs with PyTorch)"
+                    else:
+                        GPU_MESSAGE = "✅ GPU acceleration available (PyTorch)"
                 else:
                     GPU_MESSAGE = "⚠️  PyTorch found but no CUDA GPU detected - using CPU optimization only"
             except ImportError:
@@ -220,7 +242,8 @@ checkpoint_manager = ModelCheckpointManager()
 
 def get_optimal_workers():
     """
-    Get optimal number of workers based on system resources
+    Get optimal number of workers based on system resources and GPU availability
+    Enhanced for T4 multi-GPU setups on Kaggle
     """
     # Get system info
     cpu_count = mp.cpu_count()
@@ -232,6 +255,36 @@ def get_optimal_workers():
     # Adjust based on memory (each worker needs ~1-2GB)
     memory_limited_workers = int(memory_gb / 2)
     max_workers = min(max_workers, memory_limited_workers)
+    
+    # Enhanced GPU optimization for T4 setups
+    if GPU_AVAILABLE:
+        try:
+            import cupy as cp
+            gpu_count = cp.cuda.runtime.getDeviceCount()
+            
+            # Get GPU memory info
+            total_gpu_memory = 0
+            for i in range(gpu_count):
+                with cp.cuda.Device(i):
+                    meminfo = cp.cuda.runtime.memGetInfo()
+                    total_gpu_memory += meminfo[1] / (1024**3)  # Convert to GB
+            
+            print(f"🎮 Detected {gpu_count}x GPUs with {total_gpu_memory:.1f}GB total VRAM")
+            
+            # For T4 multi-GPU, increase workers significantly
+            if gpu_count > 1:
+                # T4s have 16GB each, can handle more parallel work
+                gpu_boost = min(gpu_count * 4, 16)  # Up to 16 extra workers for multi-GPU
+                max_workers = min(max_workers + gpu_boost, 32)
+                print(f"🚀 Multi-GPU boost: +{gpu_boost} workers")
+            else:
+                # Single GPU boost
+                gpu_boost = min(4, max_workers // 2)
+                max_workers = min(max_workers + gpu_boost, 24)
+                print(f"🎮 Single GPU boost: +{gpu_boost} workers")
+                
+        except Exception as e:
+            print(f"⚠️  GPU info detection failed: {e}")
     
     # Ensure at least 2 workers but not more than 32
     max_workers = max(2, min(max_workers, 32))
@@ -331,7 +384,7 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
             executor.submit(process_single_file_optimized, file_path, model_func, theta_value, n_months): file_path
             for file_path in file_paths
         }
-            
+        
         # Process results with progress tracking
         processed_count = 0
         for future in as_completed(future_to_file):
