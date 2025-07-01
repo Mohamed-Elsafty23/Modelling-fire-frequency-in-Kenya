@@ -320,7 +320,7 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
     else:
         # Use ThreadPoolExecutor for I/O intensive Bayesian models
         # but with more threads than before
-        bayesian_workers = min(max_workers // 2, 8)  # Less aggressive for Bayesian
+        bayesian_workers = max(1, min(max_workers // 2, 8))  # Ensure at least 1 worker
         executor_class = ThreadPoolExecutor
         max_workers = bayesian_workers
         print(f"🔧 Using ThreadPoolExecutor with {max_workers} threads (Bayesian)")
