@@ -19,6 +19,7 @@ from functools import partial
 import time
 import psutil
 from datetime import datetime
+import cudf  # noqa: F401
 
 # Cloud resource detection and optimization
 GPU_AVAILABLE = False
