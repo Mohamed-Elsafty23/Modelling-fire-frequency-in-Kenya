@@ -6,10 +6,14 @@ Runs standard and Bayesian NB models on all simulated datasets (5, 10, 20, 30 ye
 OPTIMIZED VERSION: Enhanced with GPU acceleration, maximum parallelization, and CHECKPOINTS
 """
 
+# Configure PyTensor BEFORE any imports
+import os
+# Disable compilation caching to avoid parallel processing conflicts
+os.environ['PYTENSOR_FLAGS'] = 'mode=FAST_RUN,optimizer=fast_run,cxx='
+
 import pandas as pd
 import numpy as np
 import glob
-import os
 import json
 import pickle
 from pathlib import Path
@@ -19,7 +23,6 @@ from functools import partial
 import time
 import psutil
 from datetime import datetime
-import cudf  # noqa: F401
 
 # Cloud resource detection and optimization
 GPU_AVAILABLE = False
@@ -27,6 +30,41 @@ TPU_AVAILABLE = False
 GPU_MESSAGE = ""
 TPU_MESSAGE = ""
 CLOUD_PLATFORM = "Unknown"
+
+# Thread control settings
+THREAD_CONTROL_MODE = "manual"  # Options: "auto", "manual"
+MANUAL_THREAD_COUNT = 1      # Used when THREAD_CONTROL_MODE = "manual"
+
+def set_thread_control(mode="auto", manual_count=16):
+    """
+    Set thread control mode and manual thread count
+    
+    Args:
+        mode (str): "auto" or "manual"
+        manual_count (int): Number of threads to use in manual mode
+    """
+    global THREAD_CONTROL_MODE, MANUAL_THREAD_COUNT
+    
+    if mode not in ["auto", "manual"]:
+        raise ValueError("Mode must be 'auto' or 'manual'")
+    
+    THREAD_CONTROL_MODE = mode
+    MANUAL_THREAD_COUNT = max(1, manual_count)  # Ensure at least 1 thread
+    
+    print(f"[THREAD CONTROL] Updated settings:")
+    print(f"   - Mode: {THREAD_CONTROL_MODE.upper()}")
+    if THREAD_CONTROL_MODE == "manual":
+        print(f"   - Manual thread count: {MANUAL_THREAD_COUNT}")
+    else:
+        print(f"   - Auto mode: Will calculate optimal threads")
+
+def get_thread_info():
+    """Get current thread control information"""
+    return {
+        "mode": THREAD_CONTROL_MODE,
+        "manual_count": MANUAL_THREAD_COUNT,
+        "current_workers": get_optimal_workers()
+    }
 
 # Comprehensive warning suppression for clean output
 import warnings
@@ -40,15 +78,13 @@ warnings.filterwarnings('ignore', message='.*PyTensor.*')
 warnings.filterwarnings('ignore', message='.*oneDNN.*')
 warnings.filterwarnings('ignore', message='.*tensorflow.*')
 
-# Configure PyTensor for better performance
+# Additional PyTensor configuration (main config set via environment variable)
 try:
     import pytensor
     # Set PyTensor to use Python mode to avoid compiler warnings
     pytensor.config.gcc__cxxflags = ""
     pytensor.config.on_opt_error = 'warn'
     pytensor.config.on_shape_error = 'warn'
-    # Disable compiler warnings
-    pytensor.config.mode = 'FAST_COMPILE'
 except ImportError:
     pass
 
@@ -356,6 +392,15 @@ def get_optimal_workers():
     Get optimal number of workers based on cloud resources
     Cloud-optimized: More aggressive resource utilization
     """
+    # Check thread control mode
+    if THREAD_CONTROL_MODE == "manual":
+        max_workers = MANUAL_THREAD_COUNT
+        print(f"[THREAD CONTROL] Manual mode: Using {max_workers} workers")
+        return max_workers
+    
+    # Auto mode - calculate optimal workers
+    print(f"[THREAD CONTROL] Auto mode: Calculating optimal workers")
+    
     # Get system info
     cpu_count = mp.cpu_count()
     memory_gb = psutil.virtual_memory().total / (1024**3)
@@ -492,7 +537,6 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
     
     print(f"\n{'='*60}")
     print(f"Running {model_name} models: {time_period} years, theta = {theta_value}")
-    print(f"Using {max_workers} parallel workers")
     if GPU_AVAILABLE:
         print("[GPU] GPU acceleration: ENABLED")
     print('='*60)
@@ -521,20 +565,11 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
             max_workers = min(max_workers, len(file_paths))  # Don't exceed file count
         print(f"[EXECUTOR] Using ProcessPoolExecutor with {max_workers} processes")
     else:
-        # Bayesian models: cloud-optimized threading
-        if CLOUD_PLATFORM in ["Google Colab", "Google Cloud"]:
-            # More aggressive threading on cloud
-            bayesian_workers = max(2, min(max_workers // 2, 16))
-        elif CLOUD_PLATFORM == "Kaggle":
-            # Conservative for Kaggle
-            bayesian_workers = max(1, min(max_workers // 3, 6))
-        else:
-            # Default conservative approach
-            bayesian_workers = max(1, min(max_workers // 2, 8))
-            
+        # Bayesian models: use ALL available threads for maximum speed
         executor_class = ThreadPoolExecutor
-        max_workers = bayesian_workers
-        print(f"[EXECUTOR] Using ThreadPoolExecutor with {max_workers} threads (Bayesian)")
+        print(f"[EXECUTOR] Using ThreadPoolExecutor with {max_workers} threads (Bayesian - MAXIMUM SPEED)")
+        if max_workers > 2:
+            print(f"[WARNING] High parallelization may cause PyTensor cache conflicts - but prioritizing speed!")
     
     with executor_class(max_workers=max_workers) as executor:
         # Submit all tasks
@@ -662,19 +697,19 @@ def run_time_period_models(time_period, n_months):
         except Exception as e:
             print(f"[ERROR] Error processing NB models for {time_period}yr, theta {theta}: {e}")
     
-    # Run Bayesian models (moderate parallelization)
+    # Run Bayesian models (maximum parallelization)
     print(f"\n--- [BAYESIAN] Bayesian NB Models ({time_period} years) ---")
+    print(f"[PERFORMANCE] Using ALL available threads for maximum speed!")
     for theta in theta_values:
         try:
-            # Use fewer workers for Bayesian to avoid memory issues
-            bayesian_workers = min(max_workers // 2, 6)
+            # Use ALL workers for maximum speed
             result_df = run_models_on_theta(
                 theta_value=theta,
                 model_func=stanbinner,
                 model_name='Bayesian',
                 time_period=time_period,
                 n_months=n_months,
-                max_workers=bayesian_workers
+                max_workers=max_workers  # Use full parallelization
             )
             if not result_df.empty:  # Job was actually run (not skipped)
                 jobs_run += 1
@@ -690,6 +725,13 @@ def main():
     print("[PIPELINE] COMPREHENSIVE MODEL EVALUATION PIPELINE - OPTIMIZED + CHECKPOINTS")
     print("Python version of 7models_*.R scripts")
     print("[INFO] Enhanced with GPU acceleration, maximum parallelization, and smart resuming")
+    print("="*80)
+    
+    # Display thread control settings
+    print(f"\n[THREAD CONTROL] Configuration:")
+    print(f"   - Mode: {THREAD_CONTROL_MODE.upper()}")
+    if THREAD_CONTROL_MODE == "manual":
+        print(f"   - Manual thread count: {MANUAL_THREAD_COUNT}")
     print("="*80)
     
     # Display system capabilities
@@ -787,20 +829,22 @@ def main():
         # Estimate total runtime
         total_jobs = remaining_count
         if total_jobs > 0:
-            # Rough estimate: 30 seconds per job baseline, adjusted for resources
-            estimated_seconds_per_job = 30 / performance_multiplier
+            # Rough estimate: 30 seconds per job baseline, adjusted for resources AND full parallelization
+            estimated_seconds_per_job = 30 / (performance_multiplier * optimal_workers)
             estimated_total_hours = (total_jobs * estimated_seconds_per_job) / 3600
-            print(f"   - Estimated total runtime: {estimated_total_hours:.1f} hours")
+            print(f"   - Estimated total runtime: {estimated_total_hours:.1f} hours (with MAXIMUM parallelization)")
             
             if estimated_total_hours > 6 and CLOUD_PLATFORM == "Google Colab":
                 print(f"   - [WARNING] Long job detected - consider Colab Pro for longer sessions")
     
     if GPU_AVAILABLE:
         print(f"\n[ACCELERATION] GPU Acceleration: ENABLED - Expect {performance_multiplier:.1f}x speedup")
+        print(f"[PERFORMANCE] MAXIMUM PARALLELIZATION: {optimal_workers} workers for ALL models (Standard + Bayesian)")
     elif TPU_AVAILABLE:
         print(f"\n[ACCELERATION] TPU Acceleration: ENABLED - Expect {performance_multiplier:.1f}x speedup")
+        print(f"[PERFORMANCE] MAXIMUM PARALLELIZATION: {optimal_workers} workers for ALL models (Standard + Bayesian)")
     else:
-        print(f"\n[PROCESSING] CPU-only processing with {optimal_workers} parallel workers")
+        print(f"\n[PROCESSING] MAXIMUM PARALLELIZATION: {optimal_workers} parallel workers for ALL models")
     
     total_start_time = time.time()
     jobs_run = 0
