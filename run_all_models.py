@@ -204,6 +204,7 @@ def print_cloud_setup_guide():
     
     print("="*80)
 
+
 print_cloud_setup_guide()
 
 print(f"[CLOUD] Platform: {CLOUD_PLATFORM}")
