@@ -37,7 +37,7 @@ def negbinner(x, theta=1.5, n=60):
         fireTrain = x.iloc[:trainIndex].copy()
         
         # R code: fireTest <- x[(trainIndex+1):n,]  
-        fireTest = x.iloc[trainIndex:n].copy()
+        fireTest = x.iloc[trainIndex:].copy()
         
         # Fit model on training set EXACTLY like R
         # R code: glmNB <- MASS::glm.nb(count ~ max_temp + rainfall, data = fireTrain, link = "log")
@@ -70,15 +70,14 @@ def negbinner(x, theta=1.5, n=60):
         
         # Get the MASE EXACTLY like R  
         # R code: test_mase <- Metrics::mase(actual = fireTest$count, predicted = round(predictions_test))
-        naive_forecast = np.mean(y_train)  # Naive baseline
-        mae_naive = mean_absolute_error(y_test, [naive_forecast] * len(y_test))
+        mae_naive = np.mean(np.abs(np.diff(y_train)))
         mae_model = mean_absolute_error(y_test, np.round(predictions_test))
         test_mase = mae_model / mae_naive if mae_naive > 0 else np.inf
         
         # Get the bias EXACTLY like R
         # R code: test_bias <- Metrics::bias(actual = fireTest$count, predicted = round(predictions_test))
-        test_bias = np.mean(np.round(predictions_test) - y_test)
-        
+        test_bias = np.mean((y_test - np.round(predictions_test))/np.abs(y_test))
+
         # Return EXACTLY like R
         # R code: cbind(rmse_train = train_rmse, rmse_test = test_rmse, mase_test = test_mase,
         #               bias_test = test_bias, theta = theta, n = n)
@@ -125,7 +124,7 @@ def stanbinner(x, theta=1.5, n=60):
         fireTrain = x.iloc[:trainIndex].copy()
         
         # R code: fireTest <- x[(trainIndex+1):n,]
-        fireTest = x.iloc[trainIndex:n].copy()
+        fireTest = x.iloc[trainIndex:].copy()
         
         # Get prior means EXACTLY like R get_prior_means function
         def get_prior_means(x):
@@ -224,14 +223,12 @@ def stanbinner(x, theta=1.5, n=60):
         test_rmse = np.sqrt(mean_squared_error(fireTest2['count'], np.round(pred_test)))
 
         # MASE
-        naive_forecast = np.mean(fireTrain2['count'])
-        mae_naive = mean_absolute_error(fireTest2['count'], [naive_forecast] * len(fireTest2))
+        mae_naive = np.mean(np.abs(np.diff(fireTrain2['count'])))
         mae_model = mean_absolute_error(fireTest2['count'], np.round(pred_test))
         test_mase = mae_model / mae_naive if mae_naive > 0 else np.inf
 
         # Bias
-        test_bias = np.mean(np.round(pred_test) - fireTest2['count'])
-
+        test_bias = np.mean((fireTest2['count'] - np.round(pred_test))/np.abs(fireTest2['count']))
             
         return {
             'rmse_train': train_rmse,
