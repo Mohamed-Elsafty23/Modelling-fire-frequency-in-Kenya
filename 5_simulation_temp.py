@@ -271,7 +271,8 @@ def run_all_simulations():
             print(f"\nGenerating {years}-year datasets ({months} months)...")
             
             simulator.generate_multiple_datasets(
-                n_datasets=1000,
+                n_datasets=500,
+                # n_datasets=1000,
                 n_months=months,
                 theta=theta,
                 subdir_name=f"d{years}year/theta_{theta}"
