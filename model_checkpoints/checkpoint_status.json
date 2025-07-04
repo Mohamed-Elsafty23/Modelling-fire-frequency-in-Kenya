@@ -1,0 +1,54 @@
+{
+  "5year_theta1.5_nb": {
+    "time_period": 5,
+    "theta_value": 1.5,
+    "model_name": "NB",
+    "output_file": "our_output\\model_results\\five_year_1.5_metrics.csv",
+    "processing_time": 21.111863613128662,
+    "file_count": 100,
+    "completed_at": "2025-07-03T23:42:52.689252",
+    "system_info": {
+      "cpu_cores": 8,
+      "gpu_available": false
+    }
+  },
+  "5year_theta5_nb": {
+    "time_period": 5,
+    "theta_value": 5,
+    "model_name": "NB",
+    "output_file": "our_output\\model_results\\five_year_5_metrics.csv",
+    "processing_time": 25.795766592025757,
+    "file_count": 100,
+    "completed_at": "2025-07-03T23:43:18.596713",
+    "system_info": {
+      "cpu_cores": 8,
+      "gpu_available": false
+    }
+  },
+  "5year_theta10_nb": {
+    "time_period": 5,
+    "theta_value": 10,
+    "model_name": "NB",
+    "output_file": "our_output\\model_results\\five_year_10_metrics.csv",
+    "processing_time": 23.74579358100891,
+    "file_count": 100,
+    "completed_at": "2025-07-03T23:43:42.359763",
+    "system_info": {
+      "cpu_cores": 8,
+      "gpu_available": false
+    }
+  },
+  "5year_theta100_nb": {
+    "time_period": 5,
+    "theta_value": 100,
+    "model_name": "NB",
+    "output_file": "our_output\\model_results\\five_year_100_metrics.csv",
+    "processing_time": 22.672427654266357,
+    "file_count": 100,
+    "completed_at": "2025-07-03T23:44:05.050012",
+    "system_info": {
+      "cpu_cores": 8,
+      "gpu_available": false
+    }
+  }
+}
