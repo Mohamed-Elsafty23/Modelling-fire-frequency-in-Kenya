@@ -17,15 +17,12 @@ print(data.head())
 # Run standard negative binomial model
 print("\nRunning Standard Negative Binomial Model...")
 nb_result = negbinner(data, theta=1.5, n=60)
-print("Standard Model Results:")
-for k, v in nb_result.items():
-    print(f"{k}: {v:.4f}")
 
 # Run Bayesian negative binomial model
 print("\nRunning Bayesian Negative Binomial Model...")
 bayes_result = stanbinner(data, theta=1.5, n=60)
-print("Bayesian Model Results:")
-for k, v in bayes_result.items():
-    print(f"{k}: {v:.4f}")
 
-print(data['count'].mean())
+# Combine both results into a DataFrame
+results_df = pd.DataFrame([nb_result, bayes_result], index=["Standard NB", "Bayesian NB"]).drop(columns={"theta", "n"}).T
+print("\nModel Results:")
+print(results_df)
