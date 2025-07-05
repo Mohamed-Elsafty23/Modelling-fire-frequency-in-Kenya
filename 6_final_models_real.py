@@ -4,7 +4,8 @@ from output_utils import get_output_path, get_model_results_path, get_simulated_
 Defines standard and Bayesian negative binomial models for fire frequency prediction
 Applies negbinner and stanbinner models to real dataset
 """
-
+#import pytensor
+#pytensor.config.cxx = "/usr/bin/clang++" # remove hashtag to fix pytensor issue on Mac
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -158,11 +159,15 @@ def stanbinner(x, theta=1.5, n=60):
         
         # Join means to train data EXACTLY like R
         # R code: fireTrain2 <- fireTrain %>% inner_join(p_means, by = "time")
+        fireTrain2_index = fireTrain.index
         fireTrain2 = fireTrain.merge(p_means, on='time', how='inner')
+        fireTrain2.index = fireTrain2_index
         
         # Join means to test data EXACTLY like R
         # R code: fireTest2 <- fireTest %>% inner_join(p_means, by = "time")
+        fireTest2_index = fireTest.index  # save index before merge
         fireTest2 = fireTest.merge(p_means, on='time', how='inner')
+        fireTest2.index = fireTest2_index  # restore index after merge
 
         # >>> CHANGED/ADDED: Define and fit Bayesian Negative Binomial model using PyMC
         # Standardize predictors
@@ -221,11 +226,15 @@ def stanbinner(x, theta=1.5, n=60):
                     beta_sin_vals[i] * data['sinthet'].values
                 )
                 samples.append(mu_i)
+            # Compute mean and 95% prediction interval
+            mean = np.mean(samples, axis=0)
+            lower = np.percentile(samples, 2.5, axis=0)
+            upper = np.percentile(samples, 97.5, axis=0)
 
-            return np.mean(samples, axis=0)
-
-        pred_train = predict_posterior(fireTrain2, trace)
-        pred_test = predict_posterior(fireTest2, trace)
+            return mean, lower, upper
+        
+        pred_train, pred_train_lower, pred_train_upper = predict_posterior(fireTrain2, trace)
+        pred_test, pred_test_lower, pred_test_upper = predict_posterior(fireTest2, trace)
 
         # >>> CHANGED/ADDED: Evaluation metrics using Bayesian predictions
         train_rmse = np.sqrt(mean_squared_error(fireTrain2['count'], np.round(pred_train)))
@@ -247,28 +256,28 @@ def stanbinner(x, theta=1.5, n=60):
         az.plot_trace(trace, figsize=(8, 10))
         plt.suptitle("Traceplot", fontsize=12)
         plt.tight_layout()
-        plt.savefig("our_output/diagnostics/traceplot.png", dpi=300)
+        #plt.savefig("our_output/diagnostics/traceplot.png", dpi=300)
         plt.close()
 
         # Posterior distributions
         az.plot_posterior(trace, figsize=(10, 8))
         plt.suptitle("Posterior Distributions", fontsize=12)
         plt.tight_layout()
-        plt.savefig("our_output/diagnostics/posterior_distributions.png", dpi=300)
+        #plt.savefig("our_output/diagnostics/posterior_distributions.png", dpi=300)
         plt.close()
 
         # Forest plot with R-hat
         az.plot_forest(trace, figsize=(8, 4), combined=True, hdi_prob=0.95, r_hat=True)
         plt.suptitle("Forest Plot with R-hat", fontsize=12)
         plt.tight_layout()
-        plt.savefig("our_output/diagnostics/forest_plot.png", dpi=300)
+        #plt.savefig("our_output/diagnostics/forest_plot.png", dpi=300)
         plt.close()
 
         # Energy plot
         az.plot_energy(trace, figsize=(6, 4))
         plt.title("Energy Plot", fontsize=12)
         plt.tight_layout()
-        plt.savefig("our_output/diagnostics/energy_plot.png", dpi=300)
+        #plt.savefig("our_output/diagnostics/energy_plot.png", dpi=300)
         plt.close()
 
         # Autocorrelation plot
@@ -280,10 +289,8 @@ def stanbinner(x, theta=1.5, n=60):
         )
         plt.suptitle("Autocorrelation", fontsize=12)
         plt.tight_layout()
-        plt.savefig("our_output/diagnostics/autocorrelation_plot.png", dpi=300)
+        #plt.savefig("our_output/diagnostics/autocorrelation_plot.png", dpi=300)
         plt.close()
-
-
 
         return {
             'rmse_train': train_rmse,
@@ -294,8 +301,12 @@ def stanbinner(x, theta=1.5, n=60):
             'n': n,
             'y_true_train': fireTrain2['count'].values,
             'y_pred_train': pred_train,
+            'y_lower_train': pred_train_lower,
+            'y_upper_train': pred_train_upper,
             'y_true_test': fireTest2['count'].values,
             'y_pred_test': pred_test,
+            'y_lower_test': pred_test_lower,
+            'y_upper_test': pred_test_upper,
             'index_train': fireTrain2.index,
             'index_test': fireTest2.index
         }
@@ -309,22 +320,35 @@ def stanbinner(x, theta=1.5, n=60):
         }
 
 # Combine predictions and actuals
-def build_df(result, label):
+def build_df(result, label, data):
+    # Match index to actual timestamps
+    full_data = data.copy().reset_index(drop=True)
+
     df_train = pd.DataFrame({
         'index': result['index_train'],
         'actual': result['y_true_train'],
         'predicted': result['y_pred_train'],
+        'lower': result.get('y_lower_train', np.nan),
+        'upper': result.get('y_upper_train', np.nan),
         'set': 'train',
-        'model': label
+        'model': label,
+        'year': full_data.loc[result['index_train'], 'year'].values,
+        'month': full_data.loc[result['index_train'], 'month'].values
     })
     df_test = pd.DataFrame({
         'index': result['index_test'],
         'actual': result['y_true_test'],
         'predicted': result['y_pred_test'],
+        'lower': result.get('y_lower_test', np.nan),
+        'upper': result.get('y_upper_test', np.nan),
         'set': 'test',
-        'model': label
+        'model': label,
+        'year': full_data.loc[result['index_test'], 'year'].values,
+        'month': full_data.loc[result['index_test'], 'month'].values
     })
-    return pd.concat([df_train, df_test]).sort_values('index')
+    df = pd.concat([df_train, df_test])
+    df['date'] = pd.to_datetime(dict(year=df['year'], month=df['month'], day=1))
+    return df.sort_values('date')
 
 if __name__ == "__main__":
     # Define path to the input dataset
@@ -345,13 +369,14 @@ if __name__ == "__main__":
     bayes_result = stanbinner(data, theta=1.5, n=60)
 
     # Combine both results into a DataFrame
-    results_df = pd.DataFrame([nb_result, bayes_result], index=["Standard NB", "Bayesian NB"]).drop(columns={"theta", "n"}).T
+    results_df = pd.DataFrame([nb_result, bayes_result], index=["Standard NB", "Bayesian NB"])
+    results_df = results_df.loc[:, ["rmse_train", "rmse_test", "mase_test", "bias_test"]].T
     print("\nModel Results:")
     print(results_df)
 
     # Build df for plotting
-    df_nb = build_df(nb_result, 'Standard NB')
-    df_bayes = build_df(bayes_result, 'Bayesian NB')
+    df_nb = build_df(nb_result, 'Standard NB', data)
+    df_bayes = build_df(bayes_result, 'Bayesian NB', data)
     plot_df = pd.concat([df_nb, df_bayes])
 
     sns.set(style="whitegrid")
@@ -361,6 +386,18 @@ if __name__ == "__main__":
         sub_df = plot_df[plot_df['model'] == model_name]
         ax.plot(sub_df['index'], sub_df['actual'], label='Actual', color='black', linewidth=1.5)
         ax.plot(sub_df['index'], sub_df['predicted'], label='Predicted', color='steelblue', linestyle='--')
+
+        # Plot 95% prediction interval if available
+        if 'lower' in sub_df and 'upper' in sub_df:
+            ax.fill_between(
+                sub_df['index'],
+                sub_df['lower'],
+                sub_df['upper'],
+                color='steelblue',
+                alpha=0.2,
+                label='95% Prediction Interval'
+            )
+
         ax.axvline(sub_df[sub_df['set'] == 'train']['index'].max(), color='grey', linestyle=':', label='Train/Test Split')
         ax.set_title(f'{model_name} Predictions')
         ax.set_xlabel('Time Index')
@@ -368,4 +405,5 @@ if __name__ == "__main__":
         ax.legend()
 
     plt.tight_layout()
+    #plt.savefig("our_output/diagnostics/predictions.png", dpi=300)
     plt.show()
