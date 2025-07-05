@@ -18,6 +18,7 @@ import io
 import contextlib
 import arviz as az
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import seaborn as sns
 warnings.filterwarnings('ignore')
 
@@ -384,13 +385,15 @@ if __name__ == "__main__":
 
     for ax, model_name in zip(axes, ['Standard NB', 'Bayesian NB']):
         sub_df = plot_df[plot_df['model'] == model_name]
-        ax.plot(sub_df['index'], sub_df['actual'], label='Actual', color='black', linewidth=1.5)
-        ax.plot(sub_df['index'], sub_df['predicted'], label='Predicted', color='steelblue', linestyle='--')
 
-        # Plot 95% prediction interval if available
+        # Plot actual and predicted
+        ax.plot(sub_df['date'], sub_df['actual'], label='Actual', color='black', linewidth=1.5)
+        ax.plot(sub_df['date'], sub_df['predicted'], label='Predicted', color='steelblue', linestyle='--')
+
+        # Plot prediction interval if present
         if 'lower' in sub_df and 'upper' in sub_df:
             ax.fill_between(
-                sub_df['index'],
+                sub_df['date'],
                 sub_df['lower'],
                 sub_df['upper'],
                 color='steelblue',
@@ -398,12 +401,24 @@ if __name__ == "__main__":
                 label='95% Prediction Interval'
             )
 
-        ax.axvline(sub_df[sub_df['set'] == 'train']['index'].max(), color='grey', linestyle=':', label='Train/Test Split')
+        # Train/test split marker
+        split_date = sub_df[sub_df['set'] == 'train']['date'].max()
+        ax.axvline(split_date, color='grey', linestyle=':', label='Train/Test Split')
+
+        # Axis settings
         ax.set_title(f'{model_name} Predictions')
-        ax.set_xlabel('Time Index')
+        ax.set_xlabel('Date')
         ax.set_ylabel('Count')
+
+        # Format x-axis to show every 2nd year
+        ax.xaxis.set_major_locator(mdates.YearLocator(base=2))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+        # Rotate labels if needed
+        ax.tick_params(axis='x', rotation=45)
+
         ax.legend()
 
     plt.tight_layout()
-    #plt.savefig("our_output/diagnostics/predictions.png", dpi=300)
+    plt.savefig("our_output/diagnostics/predictions_year.png", dpi=300)
     plt.show()
