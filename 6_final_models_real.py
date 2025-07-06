@@ -383,8 +383,9 @@ if __name__ == "__main__":
     sns.set(style="whitegrid")
     fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
 
-    for ax, model_name in zip(axes, ['Standard NB', 'Bayesian NB']):
-        sub_df = plot_df[plot_df['model'] == model_name]
+    for ax, model_name in zip(axes, ['Bayesian NB', 'Standard NB']):
+        #sub_df = plot_df[plot_df['model'] == model_name]
+        sub_df = plot_df[(plot_df['model'] == model_name) & (plot_df['set'] == 'test')]
 
         # Plot actual and predicted
         ax.plot(sub_df['date'], sub_df['actual'], label='Actual', color='black', linewidth=1.5)
@@ -402,8 +403,8 @@ if __name__ == "__main__":
             )
 
         # Train/test split marker
-        split_date = sub_df[sub_df['set'] == 'train']['date'].max()
-        ax.axvline(split_date, color='grey', linestyle=':', label='Train/Test Split')
+        #split_date = sub_df[sub_df['set'] == 'train']['date'].max()
+        #ax.axvline(split_date, color='grey', linestyle=':', label='Train/Test Split')
 
         # Axis settings
         ax.set_title(f'{model_name} Predictions')
@@ -411,7 +412,7 @@ if __name__ == "__main__":
         ax.set_ylabel('Count')
 
         # Format x-axis to show every 2nd year
-        ax.xaxis.set_major_locator(mdates.YearLocator(base=2))
+        ax.xaxis.set_major_locator(mdates.YearLocator(base=1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 
         # Rotate labels if needed
@@ -420,5 +421,5 @@ if __name__ == "__main__":
         ax.legend()
 
     plt.tight_layout()
-    plt.savefig("our_output/diagnostics/predictions_year.png", dpi=300)
+    #plt.savefig("our_output/diagnostics/predictions_year_test.png", dpi=300)
     plt.show()
