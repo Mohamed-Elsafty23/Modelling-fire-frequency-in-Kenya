@@ -148,56 +148,86 @@ def detect_cloud_resources():
                     CLOUD_PLATFORM = "Google Cloud"
             except:
                 pass
-    except:
-        pass
+    except Exception as e:
+        print(f"[WARNING] Cloud platform detection failed: {e}")
+        CLOUD_PLATFORM = "Unknown"
 
     # GPU Detection with cloud optimizations
     gpu_count = 0
     gpu_memory = 0
     gpu_name = "Unknown"
     
+    # Try TensorFlow first (most reliable in cloud environments)
     try:
-        import cupy as cp
-        import cudf
-        gpu_count = cp.cuda.runtime.getDeviceCount()
-        if gpu_count > 0:
+        import tensorflow as tf
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if len(gpus) > 0:
             GPU_AVAILABLE = True
-            # Get GPU memory info
-            free_mem, total_mem = cp.cuda.runtime.memGetInfo()
-            gpu_memory = total_mem / (1024**3)  # GB
-            GPU_MESSAGE = f"[CUPY] {gpu_count} GPU(s) available, {gpu_memory:.1f}GB total memory"
-    except ImportError:
-        try:
-            import tensorflow as tf
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if len(gpus) > 0:
-                GPU_AVAILABLE = True
-                gpu_count = len(gpus)
-                # Try to get GPU info
-                try:
-                    gpu_details = tf.config.experimental.get_device_details(gpus[0])
-                    gpu_name = gpu_details.get('device_name', 'Unknown')
-                    # Enable memory growth to avoid OOM
-                    for gpu in gpus:
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                except:
-                    pass
-                GPU_MESSAGE = f"[TENSORFLOW] {gpu_count} GPU(s) available ({gpu_name})"
-            else:
-                GPU_MESSAGE = "[WARNING] TensorFlow found but no GPU detected"
-        except ImportError:
+            gpu_count = len(gpus)
+            # Try to get GPU info
             try:
-                import torch
-                if torch.cuda.is_available():
-                    GPU_AVAILABLE = True
-                    gpu_count = torch.cuda.device_count()
-                    gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
-                    gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3) if gpu_count > 0 else 0
-                    GPU_MESSAGE = f"[PYTORCH] {gpu_count} GPU(s) available ({gpu_name}, {gpu_memory:.1f}GB)"
-                else:
-                    GPU_MESSAGE = "[WARNING] PyTorch found but no CUDA GPU detected"
-            except ImportError:
-                GPU_MESSAGE = "[INFO] No GPU packages found"
+                gpu_details = tf.config.experimental.get_device_details(gpus[0])
+                gpu_name = gpu_details.get('device_name', 'Unknown')
+                # Enable memory growth to avoid OOM
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+            except:
+                pass
+            GPU_MESSAGE = f"[TENSORFLOW] {gpu_count} GPU(s) available ({gpu_name})"
+        else:
+            GPU_MESSAGE = "[INFO] TensorFlow found but no GPU detected"
+    except ImportError:
+        GPU_MESSAGE = "[INFO] TensorFlow not available"
+    except Exception as e:
+        GPU_MESSAGE = f"[WARNING] TensorFlow GPU detection failed: {str(e)[:50]}"
+    
+    # Try PyTorch if TensorFlow didn't work
+    if not GPU_AVAILABLE:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                GPU_AVAILABLE = True
+                gpu_count = torch.cuda.device_count()
+                gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3) if gpu_count > 0 else 0
+                GPU_MESSAGE = f"[PYTORCH] {gpu_count} GPU(s) available ({gpu_name}, {gpu_memory:.1f}GB)"
+            else:
+                if not GPU_MESSAGE.startswith("[TENSORFLOW]"):
+                    GPU_MESSAGE = "[INFO] PyTorch found but no CUDA GPU detected"
+        except ImportError:
+            if not GPU_MESSAGE.startswith("[TENSORFLOW]"):
+                GPU_MESSAGE = "[INFO] PyTorch not available"
+        except Exception as e:
+            if not GPU_MESSAGE.startswith("[TENSORFLOW]"):
+                GPU_MESSAGE = f"[WARNING] PyTorch GPU detection failed: {str(e)[:50]}"
+    
+    # Try CuPy last (most likely to have driver issues)
+    if not GPU_AVAILABLE:
+        try:
+            import cupy as cp
+            gpu_count = cp.cuda.runtime.getDeviceCount()
+            if gpu_count > 0:
+                GPU_AVAILABLE = True
+                # Get GPU memory info
+                try:
+                    free_mem, total_mem = cp.cuda.runtime.memGetInfo()
+                    gpu_memory = total_mem / (1024**3)  # GB
+                except:
+                    gpu_memory = 0
+                GPU_MESSAGE = f"[CUPY] {gpu_count} GPU(s) available, {gpu_memory:.1f}GB total memory"
+            else:
+                if not GPU_MESSAGE.startswith("[TENSORFLOW]") and not GPU_MESSAGE.startswith("[PYTORCH]"):
+                    GPU_MESSAGE = "[INFO] CuPy found but no GPU detected"
+        except ImportError:
+            if not GPU_MESSAGE.startswith("[TENSORFLOW]") and not GPU_MESSAGE.startswith("[PYTORCH]"):
+                GPU_MESSAGE = "[INFO] CuPy not available"
+        except Exception as e:
+            if not GPU_MESSAGE.startswith("[TENSORFLOW]") and not GPU_MESSAGE.startswith("[PYTORCH]"):
+                GPU_MESSAGE = f"[WARNING] CuPy GPU detection failed: {str(e)[:50]}"
+    
+    # If no GPU detected by any method, set default message
+    if not GPU_AVAILABLE and not GPU_MESSAGE.startswith("[TENSORFLOW]") and not GPU_MESSAGE.startswith("[PYTORCH]") and not GPU_MESSAGE.startswith("[CUPY]"):
+        GPU_MESSAGE = "[INFO] No GPU detected"
 
     # TPU Detection (mainly for Google Colab/Cloud)
     try:
@@ -244,7 +274,16 @@ def detect_cloud_resources():
     return gpu_count, gpu_memory, additional_info
 
 # Detect all available resources
-gpu_count, gpu_memory, additional_info = detect_cloud_resources()
+try:
+    gpu_count, gpu_memory, additional_info = detect_cloud_resources()
+except Exception as e:
+    print(f"[WARNING] Resource detection failed: {e}")
+    print("[INFO] Continuing with default settings...")
+    gpu_count = 0
+    gpu_memory = 0
+    additional_info = []
+    GPU_AVAILABLE = False
+    GPU_MESSAGE = "[WARNING] GPU detection failed, using CPU only"
 
 def print_cloud_setup_guide():
     """Print cloud platform setup recommendations"""
