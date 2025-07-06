@@ -34,7 +34,7 @@ CLOUD_PLATFORM = "Unknown"
 
 # Thread control settings
 THREAD_CONTROL_MODE = "manual"  # Options: "auto", "manual"
-MANUAL_THREAD_COUNT = 1      # Used when THREAD_CONTROL_MODE = "manual"
+MANUAL_THREAD_COUNT = 1     # Used when THREAD_CONTROL_MODE = "manual"
 
 def set_thread_control(mode="auto", manual_count=16):
     """
