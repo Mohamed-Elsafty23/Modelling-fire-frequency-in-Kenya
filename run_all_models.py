@@ -33,10 +33,10 @@ CLOUD_PLATFORM = "Unknown"
 
 # Time periods to process (in years) and their corresponding months
 TIME_PERIODS = {
-    # 5: 60,    # 5 years = 60 months
+    5: 60,    # 5 years = 60 months
     # 10: 120,  # 10 years = 120 months
-    20: 240,  # 20 years = 240 months
-    30: 360   # 30 years = 360 months
+    # 20: 240,  # 20 years = 240 months
+    # 30: 360   # 30 years = 360 months
 }
 
 # Theta values to test for dispersion parameter
