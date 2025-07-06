@@ -3,7 +3,7 @@ from output_utils import get_output_path, get_model_results_path, get_simulated_
 """
 Master script to run all model evaluations - Python version of all 7models_*.R
 Runs standard and Bayesian NB models on all simulated datasets (5, 10, 20, 30 years)
-OPTIMIZED VERSION: Enhanced with GPU acceleration, maximum parallelization, and CHECKPOINTS
+OPTIMIZED VERSION: Enhanced with GPU acceleration, maximum parallelization, and FILE-BASED CHECKING
 """
 
 # Configure PyTensor BEFORE any imports
@@ -14,15 +14,10 @@ os.environ['PYTENSOR_FLAGS'] = 'mode=FAST_RUN,optimizer=fast_run,cxx='
 import pandas as pd
 import numpy as np
 import glob
-import json
-import pickle
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import multiprocessing as mp
-from functools import partial
 import time
 import psutil
-from datetime import datetime
 
 # Cloud resource detection and optimization
 GPU_AVAILABLE = False
@@ -293,138 +288,33 @@ for info in additional_info:
 # Import model functions
 from model_functions import negbinner, stanbinner
 
-class ModelCheckpointManager:
+def check_output_file_exists(time_period, theta_value, model_name):
     """
-    Manages model checkpoints to avoid re-running completed models
+    Check if output file already exists in the model_results directory
+    
+    Args:
+        time_period (int): Time period in years (5, 10, 20, 30)
+        theta_value (float): Theta value (1.5, 5, 10, 100)
+        model_name (str): Model name ('NB' or 'Bayesian')
+    
+    Returns:
+        bool: True if file exists, False otherwise
     """
+    # Get the expected output file path
+    time_suffix = {5: "five", 10: "ten", 20: "twenty", 30: "thirty"}[time_period]
     
-    def __init__(self, checkpoint_dir="model_checkpoints"):
-        self.checkpoint_dir = Path(checkpoint_dir)
-        self.checkpoint_dir.mkdir(exist_ok=True)
-        self.checkpoint_file = self.checkpoint_dir / "checkpoint_status.json"
-        self.metadata_file = self.checkpoint_dir / "checkpoint_metadata.json"
-        self.load_checkpoint_status()
-        
-    def load_checkpoint_status(self):
-        """Load existing checkpoint status"""
-        if self.checkpoint_file.exists():
-            try:
-                with open(self.checkpoint_file, 'r') as f:
-                    self.completed_jobs = json.load(f)
-                print(f"[CHECKPOINT] Loaded checkpoint status: {len(self.completed_jobs)} completed jobs")
-            except Exception as e:
-                print(f"[ERROR] Error loading checkpoint: {e}")
-                self.completed_jobs = {}
-        else:
-            self.completed_jobs = {}
-            
-        # Load metadata
-        if self.metadata_file.exists():
-            try:
-                with open(self.metadata_file, 'r') as f:
-                    self.metadata = json.load(f)
-            except:
-                self.metadata = {}
-        else:
-            self.metadata = {}
+    if model_name.lower() == 'nb':
+        filename = f"{time_suffix}_year_{theta_value}_metrics.csv"
+    else:  # Bayesian
+        filename = f"{time_suffix}_year_{theta_value}b_metrics.csv"
     
-    def save_checkpoint_status(self):
-        """Save current checkpoint status"""
-        try:
-            with open(self.checkpoint_file, 'w') as f:
-                json.dump(self.completed_jobs, f, indent=2)
-            
-            # Update metadata
-            self.metadata['last_updated'] = datetime.now().isoformat()
-            self.metadata['total_completed'] = len(self.completed_jobs)
-            
-            with open(self.metadata_file, 'w') as f:
-                json.dump(self.metadata, f, indent=2)
-                
-        except Exception as e:
-            print(f"[ERROR] Error saving checkpoint: {e}")
+    output_file = get_model_results_path(filename)
     
-    def get_job_key(self, time_period, theta_value, model_name):
-        """Generate unique key for a job"""
-        return f"{time_period}year_theta{theta_value}_{model_name.lower()}"
-    
-    def is_job_completed(self, time_period, theta_value, model_name):
-        """Check if a specific job is already completed"""
-        job_key = self.get_job_key(time_period, theta_value, model_name)
-        
-        # Check if job is marked as completed
-        if job_key not in self.completed_jobs:
-            return False
-            
-        # Verify output file still exists
-        job_info = self.completed_jobs[job_key]
-        output_file = job_info.get('output_file')
-        
-        if output_file and os.path.exists(output_file):
-            print(f"[SKIP] Skipping {job_key} - already completed ({output_file})")
-            return True
-        else:
-            # File doesn't exist, remove from completed jobs
-            print(f"[WARNING] Output file missing for {job_key}, will re-run")
-            del self.completed_jobs[job_key]
-            self.save_checkpoint_status()
-            return False
-    
-    def mark_job_completed(self, time_period, theta_value, model_name, output_file, processing_time, file_count):
-        """Mark a job as completed"""
-        job_key = self.get_job_key(time_period, theta_value, model_name)
-        
-        self.completed_jobs[job_key] = {
-            'time_period': time_period,
-            'theta_value': theta_value,
-            'model_name': model_name,
-            'output_file': output_file,
-            'processing_time': processing_time,
-            'file_count': file_count,
-            'completed_at': datetime.now().isoformat(),
-            'system_info': {
-                'cpu_cores': mp.cpu_count(),
-                'gpu_available': GPU_AVAILABLE
-            }
-        }
-        
-        self.save_checkpoint_status()
-        print(f"[CHECKPOINT] Checkpoint saved for {job_key}")
-    
-    def get_resume_summary(self):
-        """Get summary of what can be resumed"""
-        if not self.completed_jobs:
-            return "[INFO] Starting fresh - no previous checkpoints found"
-        
-        summary = f"[CHECKPOINT] Found {len(self.completed_jobs)} completed jobs:\n"
-        
-        # Group by time period and model
-        by_period = {}
-        for job_key, job_info in self.completed_jobs.items():
-            period = job_info['time_period']
-            model = job_info['model_name']
-            if period not in by_period:
-                by_period[period] = {}
-            if model not in by_period[period]:
-                by_period[period][model] = []
-            by_period[period][model].append(job_info['theta_value'])
-        
-        for period in sorted(by_period.keys()):
-            summary += f"   • {period}-year models:\n"
-            for model in sorted(by_period[period].keys()):
-                thetas = sorted(by_period[period][model])
-                summary += f"     - {model.upper()}: theta = {thetas}\n"
-        
-        return summary
-    
-    def clear_checkpoints(self):
-        """Clear all checkpoints (start fresh)"""
-        self.completed_jobs = {}
-        self.save_checkpoint_status()
-        print("[INFO] All checkpoints cleared")
-
-# Global checkpoint manager
-checkpoint_manager = ModelCheckpointManager()
+    if os.path.exists(output_file):
+        print(f"[SKIP] Skipping {time_period}yr theta{theta_value} {model_name} - file exists: {filename}")
+        return True
+    else:
+        return False
 
 def get_optimal_workers():
     """
@@ -568,7 +458,7 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
     """Run models on all datasets for a specific theta value and time period"""
     
     # Check if this job is already completed
-    if checkpoint_manager.is_job_completed(time_period, theta_value, model_name):
+    if check_output_file_exists(time_period, theta_value, model_name):
         return pd.DataFrame()  # Return empty DataFrame, job already done
     
     if max_workers is None:
@@ -682,16 +572,6 @@ def run_models_on_theta(theta_value, model_func, model_name, time_period, n_mont
     print(f"[TIME] Processing time: {elapsed/60:.1f} minutes")
     print(f"[PERFORMANCE] Average rate: {len(file_paths)/elapsed:.1f} files/second")
     
-    # Save checkpoint
-    checkpoint_manager.mark_job_completed(
-        time_period=time_period,
-        theta_value=theta_value, 
-        model_name=model_name,
-        output_file=output_file,
-        processing_time=elapsed,
-        file_count=len(file_paths)
-    )
-    
     if len(results_df) > 0:
         print(f"[STATS] Summary statistics:")
         numeric_cols = ['rmse_train', 'rmse_test', 'mase_test', 'bias_test']
@@ -758,12 +638,12 @@ def run_time_period_models(time_period, n_months):
     return jobs_run
 
 def main():
-    """Main function to run all model evaluations with maximum optimization and checkpoints"""
+    """Main function to run all model evaluations with file-based checking"""
     
     print("="*80)
-    print("[PIPELINE] COMPREHENSIVE MODEL EVALUATION PIPELINE - OPTIMIZED + CHECKPOINTS")
+    print("[PIPELINE] COMPREHENSIVE MODEL EVALUATION PIPELINE - FILE-BASED CHECKING")
     print("Python version of 7models_*.R scripts")
-    print("[INFO] Enhanced with GPU acceleration, maximum parallelization, and smart resuming")
+    print("[INFO] Enhanced with GPU acceleration, maximum parallelization, and file-based resuming")
     print("="*80)
     
     # Display thread control settings
@@ -804,22 +684,8 @@ def main():
     if performance_multiplier > 1.0:
         print(f"   - Expected performance boost: {performance_multiplier:.1f}x faster than standard CPU")
     
-    # Display checkpoint status
-    print(f"\n[CHECKPOINT] Checkpoint Status:")
-    checkpoint_summary = checkpoint_manager.get_resume_summary()
-    print(checkpoint_summary)
-    
-    # Check if user wants to clear checkpoints
-    if checkpoint_manager.completed_jobs:
-        print(f"\n[WARNING] Found existing checkpoints. Options:")
-        print(f"   - Continue: Resume from where you left off (recommended)")
-        print(f"   - Clear: Delete all checkpoints and start fresh")
-        
-        # For automated running, we'll continue by default
-        # You can add user input here if needed:
-        # choice = input("Continue (c) or Clear (x)? [c]: ").lower()
-        # if choice == 'x':
-        #     checkpoint_manager.clear_checkpoints()
+    # Check existing output files
+    print(f"\n[FILE CHECK] Checking existing output files in: {get_model_results_path('')}")
     
     # Set seed EXACTLY like R scripts
     # R code: set.seed(76568)
@@ -839,37 +705,24 @@ def main():
     print(f"   - Theta values: {THETA_VALUES}")
     print(f"   - Model types: Standard NB + Bayesian NB")
     
-    # Calculate what needs to be done
+    # Calculate total combinations
     total_combinations = len(time_periods) * len(THETA_VALUES) * 2  # periods × thetas × models
-    completed_count = len(checkpoint_manager.completed_jobs)
-    remaining_count = total_combinations - completed_count
-    
     print(f"   - Total model combinations: {total_combinations}")
-    print(f"   - Already completed: {completed_count}")
-    print(f"   - Remaining to process: {remaining_count}")
-    
-    if remaining_count == 0:
-        print(f"\n[COMPLETE] All models already completed! No work needed.")
-        print(f"[RESULTS] Results available in: {get_model_results_path('')}")
-        return
     
     # Cloud session optimization
     if CLOUD_PLATFORM in ["Google Colab", "Kaggle"]:
         print(f"\n[CLOUD] Session Management Tips:")
         print(f"   - Keep browser tab active to prevent disconnection")
-        print(f"   - Checkpoints will preserve progress if disconnected")
+        print(f"   - Existing files will be skipped automatically")
         print(f"   - Consider running in smaller batches for very long jobs")
         
-        # Estimate total runtime
-        total_jobs = remaining_count
-        if total_jobs > 0:
-            # Rough estimate: 30 seconds per job baseline, adjusted for resources AND full parallelization
-            estimated_seconds_per_job = 30 / (performance_multiplier * optimal_workers)
-            estimated_total_hours = (total_jobs * estimated_seconds_per_job) / 3600
-            print(f"   - Estimated total runtime: {estimated_total_hours:.1f} hours (with MAXIMUM parallelization)")
-            
-            if estimated_total_hours > 6 and CLOUD_PLATFORM == "Google Colab":
-                print(f"   - [WARNING] Long job detected - consider Colab Pro for longer sessions")
+        # Estimate total runtime (rough estimate)
+        estimated_seconds_per_job = 30 / (performance_multiplier * optimal_workers)
+        estimated_total_hours = (total_combinations * estimated_seconds_per_job) / 3600
+        print(f"   - Estimated total runtime: {estimated_total_hours:.1f} hours (with MAXIMUM parallelization)")
+        
+        if estimated_total_hours > 6 and CLOUD_PLATFORM == "Google Colab":
+            print(f"   - [WARNING] Long job detected - consider Colab Pro for longer sessions")
     
     if GPU_AVAILABLE:
         print(f"\n[ACCELERATION] GPU Acceleration: ENABLED - Expect {performance_multiplier:.1f}x speedup")
@@ -910,10 +763,9 @@ def main():
         print(f"[STATS] Average time per job: {total_elapsed/jobs_run:.1f} seconds")
     else:
         print(f"[COMPLETE] ALL MODELS ALREADY COMPLETED!")
-        print(f"[TIME] Session time: {total_elapsed:.1f} seconds (checkpoint check only)")
+        print(f"[TIME] Session time: {total_elapsed:.1f} seconds (file check only)")
     
     print(f"[RESULTS] Results saved in: {get_model_results_path('')}")
-    print(f"[CHECKPOINT] Checkpoint data: {checkpoint_manager.checkpoint_dir}")
     
     # Cloud optimization summary
     if jobs_run > 0:
@@ -928,19 +780,9 @@ def main():
             estimated_base_time = total_elapsed * performance_multiplier
             print(f"   - Time saved vs CPU-only: {(estimated_base_time - total_elapsed)/60:.1f} minutes")
     
-    # Show final checkpoint status
-    final_completed = len(checkpoint_manager.completed_jobs)
-    print(f"[STATS] Total completed jobs: {final_completed}/{total_combinations}")
-    
-    if final_completed == total_combinations:
-        print(f"[SUCCESS] PIPELINE 100% COMPLETE!")
-        if CLOUD_PLATFORM in ["Google Colab", "Kaggle"]:
-            print(f"[CLOUD] All models completed successfully on {CLOUD_PLATFORM}!")
-    else:
-        remaining = total_combinations - final_completed
-        print(f"[INFO] {remaining} jobs remaining for future runs")
-        if CLOUD_PLATFORM in ["Google Colab", "Kaggle"]:
-            print(f"[CLOUD] Safe to restart session - checkpoints preserved")
+    print(f"[SUCCESS] PIPELINE COMPLETED!")
+    if CLOUD_PLATFORM in ["Google Colab", "Kaggle"]:
+        print(f"[CLOUD] All models completed successfully on {CLOUD_PLATFORM}!")
     
     print("="*80)
 
