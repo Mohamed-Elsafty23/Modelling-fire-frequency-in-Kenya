@@ -32,7 +32,45 @@ TPU_MESSAGE = ""
 CLOUD_PLATFORM = "Unknown"
 
 
-# Thread control settings
+# ============================================================================
+# CONFIGURABLE PARAMETERS - EDIT THESE TO CONTROL TIME PERIODS AND THETA VALUES
+# ============================================================================
+
+# Time periods to process (in years) and their corresponding months
+TIME_PERIODS = {
+    # 5: 60,    # 5 years = 60 months
+    # 10: 120,  # 10 years = 120 months
+    20: 240,  # 20 years = 240 months
+    30: 360   # 30 years = 360 months
+}
+
+# Theta values to test for dispersion parameter
+THETA_VALUES = [1.5, 5, 10, 100]
+
+def update_processing_parameters(time_periods=None, theta_values=None):
+    """
+    Update processing parameters
+    
+    Args:
+        time_periods (dict): Dictionary mapping years to months, e.g., {5: 60, 10: 120}
+        theta_values (list): List of theta values to test, e.g., [1.5, 5, 10]
+    """
+    global TIME_PERIODS, THETA_VALUES
+    
+    if time_periods is not None:
+        TIME_PERIODS = time_periods
+        print(f"[CONFIG] Updated time periods: {list(TIME_PERIODS.keys())} years")
+    
+    if theta_values is not None:
+        THETA_VALUES = theta_values
+        print(f"[CONFIG] Updated theta values: {THETA_VALUES}")
+    
+    print(f"[CONFIG] Total combinations: {len(TIME_PERIODS)} × {len(THETA_VALUES)} × 2 = {len(TIME_PERIODS) * len(THETA_VALUES) * 2}")
+
+# ============================================================================
+# THREAD CONTROL SETTINGS
+# ============================================================================
+
 THREAD_CONTROL_MODE = "manual"  # Options: "auto", "manual"
 MANUAL_THREAD_COUNT = 1     # Used when THREAD_CONTROL_MODE = "manual"
 
@@ -676,8 +714,8 @@ def run_time_period_models(time_period, n_months):
         print("Please run 5_simulation_temp.py first to generate simulated datasets.")
         return 0
     
-    # Parameters
-    theta_values = [1.5, 5, 10, 100]
+    # Use configurable parameters
+    theta_values = THETA_VALUES
     max_workers = get_optimal_workers()
     jobs_run = 0
     
@@ -787,13 +825,8 @@ def main():
     # R code: set.seed(76568)
     np.random.seed(76568)
     
-    # Time periods and corresponding months
-    time_periods = {
-        5: 60,    # 5 years = 60 months
-        10: 120,  # 10 years = 120 months
-        20: 240,  # 20 years = 240 months
-        30: 360   # 30 years = 360 months
-    }
+    # Use configurable time periods
+    time_periods = TIME_PERIODS
     
     # Check if simulated data exists
     if not os.path.exists(get_simulated_data_path()):
@@ -803,11 +836,11 @@ def main():
     
     print(f"\n[CONFIG] Processing Configuration:")
     print(f"   - Time periods: {list(time_periods.keys())} years")
-    print(f"   - Theta values: [1.5, 5, 10, 100]")
+    print(f"   - Theta values: {THETA_VALUES}")
     print(f"   - Model types: Standard NB + Bayesian NB")
     
     # Calculate what needs to be done
-    total_combinations = len(time_periods) * 4 * 2  # periods × thetas × models
+    total_combinations = len(time_periods) * len(THETA_VALUES) * 2  # periods × thetas × models
     completed_count = len(checkpoint_manager.completed_jobs)
     remaining_count = total_combinations - completed_count
     
