@@ -23,12 +23,12 @@ time_periods = {
 }
 
 # TODO: Set model parameters
-theta = 1.5 # theta_values = [1.5, 5, 10, 100]
+theta = 100 # theta_values = [1.5, 5, 10, 100]
 years = 5
 n = time_periods[years]
 
 # Set folder path accordingly
-folder_path = f"our_output/simulated_data/d{years}year/theta_{theta}"
+folder_path = f"our_output/simulated_data_500/d{years}year/theta_{theta}"
 
 
 # --------------------------
@@ -48,7 +48,7 @@ def extract_number(filename):
 
 csv_files = [f for f in os.listdir(folder_path) if f.endswith(".csv")]
 csv_files.sort(key=extract_number)
-csv_files = csv_files[:3]
+#csv_files = csv_files[:3]
 
 print(f"Found {len(csv_files)} datasets in: {folder_path}")
 
@@ -78,7 +78,7 @@ print("\nBayesian NB Model Results:")
 print(bayes_results_df)
 
 # output folder
-output_dir = "our_output/model_results"
+output_dir = "our_output/model_results_500"
 
 # Format theta nicely (e.g., 1.5 → "1.5", 10 → "10")
 theta_str = str(theta)
