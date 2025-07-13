@@ -225,6 +225,8 @@ class FireClimateSimulator:
             subdir_name = f"d{years}year/theta_{theta}"
         
         output_path = Path(output_dir) / subdir_name
+        #output_path = Path("our_output/simulated_data_500")
+        #output_path = output_path / subdir_name
         output_path.mkdir(parents=True, exist_ok=True)
         
         print(f"Generating {n_datasets} datasets with {n_months} months each...")
@@ -271,7 +273,7 @@ def run_all_simulations():
             print(f"\nGenerating {years}-year datasets ({months} months)...")
             
             simulator.generate_multiple_datasets(
-                n_datasets=100,
+                n_datasets=500,
                 # n_datasets=1000,
                 n_months=months,
                 theta=theta,
