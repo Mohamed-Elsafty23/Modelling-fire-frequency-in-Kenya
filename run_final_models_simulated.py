@@ -24,7 +24,7 @@ time_periods = {
 
 # TODO: Set model parameters
 theta = 100 # theta_values = [1.5, 5, 10, 100]
-years = 5
+years = 10
 n = time_periods[years]
 
 # Set folder path accordingly
