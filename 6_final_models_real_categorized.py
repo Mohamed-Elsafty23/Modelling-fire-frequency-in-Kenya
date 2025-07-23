@@ -47,7 +47,7 @@ def negbinner(x, theta=1.5, n=60):
         # Fit model on training set EXACTLY like R
         # R code: glmNB <- MASS::glm.nb(count ~ max_temp + rainfall, data = fireTrain, link = "log")
         # UPDATED: Include quadrant features in the model
-        X_train = fireTrain[['max_temp', 'rainfall', 'quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quaddrant_SW']]
+        X_train = fireTrain[['max_temp', 'rainfall', 'quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quadrant_SW']]
         y_train = fireTrain['count']
         X_train_const = sm.add_constant(X_train)
         
@@ -62,7 +62,7 @@ def negbinner(x, theta=1.5, n=60):
         
         # Predict on testing set EXACTLY like R  
         # R code: predictions_test <- predict(glmNB, newdata = fireTest, type = "response")
-        X_test = fireTest[['max_temp', 'rainfall', 'quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quaddrant_SW']]
+        X_test = fireTest[['max_temp', 'rainfall', 'quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quadrant_SW']]
         y_test = fireTest['count']
         X_test_const = sm.add_constant(X_test)
         predictions_test = glmNB.predict(X_test_const)
@@ -204,7 +204,7 @@ def stanbinner(x, theta=1.5, n=60):
                 beta_NE * fireTrain2['quadrant_NE'].values +
                 beta_NW * fireTrain2['quadrant_NW'].values +
                 beta_SE * fireTrain2['quadrant_SE'].values +
-                beta_SW * fireTrain2['quaddrant_SW'].values
+                beta_SW * fireTrain2['quadrant_SW'].values
             )
 
             # Likelihood
@@ -242,7 +242,7 @@ def stanbinner(x, theta=1.5, n=60):
                     beta_NE_vals[i] * data['quadrant_NE'].values +
                     beta_NW_vals[i] * data['quadrant_NW'].values +
                     beta_SE_vals[i] * data['quadrant_SE'].values +
-                    beta_SW_vals[i] * data['quaddrant_SW'].values
+                    beta_SW_vals[i] * data['quadrant_SW'].values
                 )
                 samples.append(mu_i)
             # Compute mean and 95% prediction interval
@@ -380,7 +380,7 @@ if __name__ == "__main__":
     data = data.rename(columns={"mean_max_temp":"max_temp", "mean_rainfall":"rainfall"})
     print(f"Loaded data from {data_path}. Shape: {data.shape}")
     print("Quadrant distribution:")
-    print(data[['quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quaddrant_SW']].sum())
+    print(data[['quadrant_NE', 'quadrant_NW', 'quadrant_SE', 'quadrant_SW']].sum())
     print(data.head())
 
     # Run standard negative binomial model
