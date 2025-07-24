@@ -1,3 +1,7 @@
+"""
+Create tables and visualizations of model results on simulated data
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -5,12 +9,12 @@ from glob import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# CONFIG
+# config
 years_to_n = {5: 60, 10: 120, 20: 240, 30: 360}
 input_dir = "our_output/model_results_500"
 file_pattern = os.path.join(input_dir, "d*year_theta_*_*_metrics.csv")
 
-# LOAD & CONCAT
+# load simulated data results
 all_dfs = []
 for path in glob(file_pattern):
     fname = os.path.basename(path).replace(".csv", "")
@@ -28,8 +32,9 @@ for path in glob(file_pattern):
 df = pd.concat(all_dfs, ignore_index=True)
 
 # ─────────────────────────────────────────
-# SUMMARY TABLE: Group → Mean → Pivot
+# SUMMARY TABLE
 # ─────────────────────────────────────────
+# Create summary table with mean values of all metrics, grouped by dispersion, timespan and model
 grp = df.groupby(["theta", "n", "model"], as_index=False).agg({
     "bias_test": "mean",
     "mase_test": "mean",
@@ -53,18 +58,19 @@ wide.columns = [
 # Drop bias columns (optional)
 wide.drop(columns=["BNB_bias", "NB_bias"], inplace=True)
 
-# ROUND numeric columns for display
+# Round numeric columns for display
 rounded_wide = wide.copy()
 for col in rounded_wide.columns[2:]:
     rounded_wide[col] = rounded_wide[col].round(3)
 
-# DISPLAY the summary table
+# Display the summary table
 print(rounded_wide.to_string(index=False))
 print(type(rounded_wide))
 
 # ─────────────────────────────────────────
-# PLOTTING: Nested 4×4 Panel (Grouped by Metric → Timespan)
+# PLOTTING
 # ─────────────────────────────────────────
+
 sns.set(style="whitegrid", font_scale=0.9)
 metrics = [
     ("bias_test", "Bias on test data"),
@@ -75,9 +81,11 @@ metrics = [
 n_values = [60, 120, 240, 360]
 thetas = sorted(df["theta"].unique())
 
+# Nested 4×4 Panel (Grouped by Metric → Timespan)
 fig, axes = plt.subplots(4, 4, figsize=(10, 10), sharey=False)
 axes = axes.reshape(4, 4)
 
+# Create violin plots for each metric, timespan and dispersion value
 for metric_col, (metric, label) in enumerate(metrics):
     valid_vals = df[metric].dropna()
     if not valid_vals.empty and np.isfinite(valid_vals).all():
@@ -126,5 +134,5 @@ for metric_col, (metric, label) in enumerate(metrics):
 axes[0, 0].legend(title="Model", loc="lower left", fontsize=8, title_fontsize=9)
 
 plt.tight_layout()
-plt.savefig("our_output/metrics_simulations_panelplot.png", dpi=300, bbox_inches="tight")
+#plt.savefig("our_output/metrics_simulations_panelplot.png", dpi=300, bbox_inches="tight")
 plt.show()

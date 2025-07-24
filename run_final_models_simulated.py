@@ -52,6 +52,7 @@ csv_files.sort(key=extract_number)
 
 print(f"Found {len(csv_files)} datasets in: {folder_path}")
 
+# Apply BNB and NB model to all datasets in the folder
 for file in tqdm(csv_files, desc="Processing files"):
     file_path = os.path.join(folder_path, file)
     dataset_id = os.path.splitext(file)[0]
@@ -77,7 +78,7 @@ print(nb_results_df)
 print("\nBayesian NB Model Results:")
 print(bayes_results_df)
 
-# output folder
+# Output folder
 output_dir = "our_output/model_results_500"
 
 # Format theta nicely (e.g., 1.5 → "1.5", 10 → "10")

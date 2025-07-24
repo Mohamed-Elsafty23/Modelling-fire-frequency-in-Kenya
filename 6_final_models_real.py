@@ -1,9 +1,10 @@
-from output_utils import get_output_path, get_model_results_path, get_simulated_data_path, ensure_output_dirs
-#!/usr/bin/env python3
 """
 Defines standard and Bayesian negative binomial models for fire frequency prediction
-Applies negbinner and stanbinner models to real dataset
+and applies the models to real dataset
 """
+
+from output_utils import get_output_path, get_model_results_path, get_simulated_data_path, ensure_output_dirs
+#!/usr/bin/env python3
 import openpyxl
 #import pytensor
 #pytensor.config.cxx = "/usr/bin/clang++" # remove hashtag to fix pytensor issue on Mac
@@ -26,67 +27,49 @@ warnings.filterwarnings('ignore')
 def negbinner(x, theta=1.5, n=60):
     """
     Standard negative binomial model function
-    EXACT Python equivalent of negbinner() in R
-    
-    R signature: negbinner <- function(x, theta = 1.5, n = 60)
     """
     try:
-        # Set seed EXACTLY like R
-        # R code: set.seed(456)
+        # Set seed
         np.random.seed(456)
         
-        # Create training and test sets EXACTLY like R
-        # R code: trainIndex <- round(0.8*length(x$count))
+        # Create training and test sets
         trainIndex = int(np.round(0.8 * len(x)))
-        
-        # R code: fireTrain <- x[1:trainIndex,]
         fireTrain = x.iloc[:trainIndex].copy()
-        
-        # R code: fireTest <- x[(trainIndex+1):n,]  
         fireTest = x.iloc[trainIndex:].copy()
         
-        # Fit model on training set EXACTLY like R
+        # Fit model on training set like R
         # R code: glmNB <- MASS::glm.nb(count ~ max_temp + rainfall, data = fireTrain, link = "log")
         X_train = fireTrain[['max_temp', 'rainfall']]
         y_train = fireTrain['count']
         X_train_const = sm.add_constant(X_train)
         
-        # CHANGED to a negative binomial model that estimates the dispersion
-        # SUPPRESS optimization messages
+        # fit negative binomial model that estimates the dispersion
+        # suppress optimization messages
         with contextlib.redirect_stdout(io.StringIO()):
             glmNB = NegativeBinomial(y_train, X_train_const).fit(disp=0)
         
-        # Predict on training set EXACTLY like R
-        # R code: predictions_train <- predict(glmNB, newdata = fireTrain, type = "response")
+        # Predict on training set
         predictions_train = glmNB.predict(X_train_const)
         
-        # Predict on testing set EXACTLY like R  
-        # R code: predictions_test <- predict(glmNB, newdata = fireTest, type = "response")
+        # Predict on testing set
         X_test = fireTest[['max_temp', 'rainfall']]
         y_test = fireTest['count']
         X_test_const = sm.add_constant(X_test)
         predictions_test = glmNB.predict(X_test_const)
         
-        # Get the RMSE EXACTLY like R
-        # R code: train_rmse <- caret::RMSE(round(predictions_train),fireTrain$count)
+        # Get the RMSE
         train_rmse = np.sqrt(mean_squared_error(y_train, np.round(predictions_train)))
-        
-        # R code: test_rmse <- caret::RMSE(round(predictions_test),fireTest$count)
         test_rmse = np.sqrt(mean_squared_error(y_test, np.round(predictions_test)))
         
-        # Get the MASE EXACTLY like R  
-        # R code: test_mase <- Metrics::mase(actual = fireTest$count, predicted = round(predictions_test))
+        # Get the MASE
         mae_naive = np.mean(np.abs(np.diff(y_train)))
         mae_model = mean_absolute_error(y_test, np.round(predictions_test))
         test_mase = mae_model / mae_naive if mae_naive > 0 else np.inf
         
-        # Get the bias EXACTLY like R
-        # R code: test_bias <- Metrics::bias(actual = fireTest$count, predicted = round(predictions_test))
+        # Get the bias
         test_bias = np.mean((y_test - np.round(predictions_test))/np.abs(y_test))
 
-        # Return EXACTLY like R
-        # R code: cbind(rmse_train = train_rmse, rmse_test = test_rmse, mase_test = test_mase,
-        #               bias_test = test_bias, theta = theta, n = n)
+        # Return metrics and predicted values
         return {
             'rmse_train': train_rmse,
             'rmse_test': test_rmse, 
@@ -113,40 +96,23 @@ def negbinner(x, theta=1.5, n=60):
 def stanbinner(x, theta=1.5, n=60):
     """
     Bayesian negative binomial model function
-    EXACT Python equivalent of stanbinner() in R
-    
-    R signature: stanbinner <- function(x, theta = 1.5, n = 60)
     """
     try:
-        # Set seed EXACTLY like R
-        # R code: set.seed(456)
+        # Set seed
         np.random.seed(456)
         
-        # Add time by month index EXACTLY like R
-        # R code: x$time <- rep(1:12, length.out = n)
+        # Use the month column of the dataset as time variable (instead of a continuous time index like in R)
         x = x.copy()
-        # CHANGED generated time to month column of the dataset
         x['time'] = x['month']
         
-        # Create training and test sets EXACTLY like R  
-        # R code: trainIndex <- round(0.8*length(x$count))
+        # Create training and test sets 
         trainIndex = int(np.round(0.8 * len(x)))
-        
-        # R code: fireTrain <- x[1:trainIndex,]
         fireTrain = x.iloc[:trainIndex].copy()
-        
-        # R code: fireTest <- x[(trainIndex+1):n,]
         fireTest = x.iloc[trainIndex:].copy()
         
-        # Get prior means EXACTLY like R get_prior_means function
+        # Get prior means
         def get_prior_means(x):
-            """
-            EXACTLY matching R's get_prior_means function:
-            x %>% group_by(time) %>% 
-              summarize(count_mean = mean(count)) %>% 
-              mutate(costhet = cos((2*12*pi)/time),
-                     sinthet = sin((2*12*pi)/time))
-            """
+    
             monthly_stats = x.groupby('time')['count'].mean().reset_index()
             monthly_stats.columns = ['time', 'count_mean']
             
@@ -156,22 +122,18 @@ def stanbinner(x, theta=1.5, n=60):
             
             return monthly_stats
         
-        # R code: p_means = get_prior_means(fireTrain)
         p_means = get_prior_means(fireTrain)
         
-        # Join means to train data EXACTLY like R
-        # R code: fireTrain2 <- fireTrain %>% inner_join(p_means, by = "time")
+        # Join means to train data
         fireTrain2_index = fireTrain.index
         fireTrain2 = fireTrain.merge(p_means, on='time', how='inner')
         fireTrain2.index = fireTrain2_index
         
-        # Join means to test data EXACTLY like R
-        # R code: fireTest2 <- fireTest %>% inner_join(p_means, by = "time")
-        fireTest2_index = fireTest.index  # save index before merge
+        # Join means to test data
+        fireTest2_index = fireTest.index
         fireTest2 = fireTest.merge(p_means, on='time', how='inner')
-        fireTest2.index = fireTest2_index  # restore index after merge
+        fireTest2.index = fireTest2_index
 
-        # >>> CHANGED/ADDED: Define and fit Bayesian Negative Binomial model using PyMC
         # Standardize predictors
         for col in ['max_temp', 'rainfall', 'costhet', 'sinthet']:
             mean = fireTrain2[col].mean()
@@ -179,7 +141,9 @@ def stanbinner(x, theta=1.5, n=60):
             fireTrain2[col] = (fireTrain2[col] - mean) / std
             fireTest2[col] = (fireTest2[col] - mean) / std
 
+        # Define and fit Bayesian Negative Binomial model using PyMC
         with pm.Model() as model:
+
             # Priors (rstanarm defaults)
             alpha = pm.Normal('alpha', mu=0, sigma=2.5)
             beta_temp = pm.Normal('beta_temp', mu=0, sigma=2.5)
@@ -205,7 +169,7 @@ def stanbinner(x, theta=1.5, n=60):
             trace = pm.sample(500, tune=250, random_seed=456, progressbar=False, return_inferencedata=True,
                               target_accept=0.9, chains=4, cores=1)
 
-        # >>> CHANGED/ADDED: Posterior predictions
+        # Posterior predictions
         def predict_posterior(data, trace, n_samples=100):
             posterior = trace.posterior
             samples = []
@@ -228,6 +192,7 @@ def stanbinner(x, theta=1.5, n=60):
                     beta_sin_vals[i] * data['sinthet'].values
                 )
                 samples.append(mu_i)
+
             # Compute mean and 95% prediction interval
             mean = np.mean(samples, axis=0)
             lower = np.percentile(samples, 2.5, axis=0)
@@ -238,7 +203,8 @@ def stanbinner(x, theta=1.5, n=60):
         pred_train, pred_train_lower, pred_train_upper = predict_posterior(fireTrain2, trace)
         pred_test, pred_test_lower, pred_test_upper = predict_posterior(fireTest2, trace)
 
-        # >>> CHANGED/ADDED: Evaluation metrics using Bayesian predictions
+        # Evaluation metrics
+        # RMSE
         train_rmse = np.sqrt(mean_squared_error(fireTrain2['count'], np.round(pred_train)))
         test_rmse = np.sqrt(mean_squared_error(fireTest2['count'], np.round(pred_test)))
 
@@ -250,6 +216,7 @@ def stanbinner(x, theta=1.5, n=60):
         # Bias
         test_bias = np.mean((fireTest2['count'] - np.round(pred_test))/np.abs(fireTest2['count']))
 
+        # Get estimates and diagnostics
         summary_df = az.summary(trace, hdi_prob=0.95)
         print(summary_df)
 
@@ -296,6 +263,7 @@ def stanbinner(x, theta=1.5, n=60):
         #plt.savefig("our_output/diagnostics/autocorrelation_plot.png", dpi=300)
         plt.close()
 
+        # Return metrics and predicted values
         return {
             'rmse_train': train_rmse,
             'rmse_test': test_rmse,
@@ -355,7 +323,7 @@ def build_df(result, label, data):
     return df.sort_values('date')
 
 if __name__ == "__main__":
-    # Define path to the input dataset
+    # Define path to the input dataset (real data)
     data_path = "fire_data_2000-18.csv"
 
     # Load dataset
@@ -389,9 +357,9 @@ if __name__ == "__main__":
     sns.set(style="whitegrid")
     fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
 
+    # Create a lineplot of predicted vs observed for BNB and NB model
     for ax, model_name in zip(axes, ['Bayesian NB', 'Standard NB']):
-        #sub_df = plot_df[plot_df['model'] == model_name]
-        sub_df = plot_df[(plot_df['model'] == model_name) & (plot_df['set'] == 'test')]
+        sub_df = plot_df[(plot_df['model'] == model_name) & (plot_df['set'] == 'test')] # only consider test data
 
         # Plot actual and predicted
         ax.plot(sub_df['date'], sub_df['actual'], label='Actual', color='black', linewidth=1.5)
@@ -417,14 +385,13 @@ if __name__ == "__main__":
         ax.set_xlabel('Date', fontsize=18)
         ax.set_ylabel('Count', fontsize=18)
 
-        # Format x-axis to show every 2nd year
+        # Format x-axis to show every 2nd year and rotate labels
         ax.xaxis.set_major_locator(mdates.YearLocator(base=1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-
-        # Rotate labels if needed
         ax.tick_params(axis='x', rotation=45, labelsize=16)
         ax.tick_params(axis='y', labelsize=16)
-
+        
+        # Add legend
         ax.legend(fontsize=16, title_fontsize=16)
 
     plt.tight_layout()
