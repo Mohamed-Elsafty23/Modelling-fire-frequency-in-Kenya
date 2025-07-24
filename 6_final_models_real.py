@@ -4,6 +4,7 @@ from output_utils import get_output_path, get_model_results_path, get_simulated_
 Defines standard and Bayesian negative binomial models for fire frequency prediction
 Applies negbinner and stanbinner models to real dataset
 """
+import openpyxl
 #import pytensor
 #pytensor.config.cxx = "/usr/bin/clang++" # remove hashtag to fix pytensor issue on Mac
 import pandas as pd
@@ -252,6 +253,8 @@ def stanbinner(x, theta=1.5, n=60):
         summary_df = az.summary(trace, hdi_prob=0.95)
         print(summary_df)
 
+        # Save to Excel
+        # summary_df.to_excel("our_output/estimates_real.xlsx", index=True)
 
         # Traceplot
         az.plot_trace(trace, figsize=(8, 10))
@@ -375,6 +378,9 @@ if __name__ == "__main__":
     print("\nModel Results:")
     print(results_df)
 
+    # Save to Excel
+    # results_df.to_excel("our_output/metrics_real.xlsx", index=True)
+
     # Build df for plotting
     df_nb = build_df(nb_result, 'Standard NB', data)
     df_bayes = build_df(bayes_result, 'Bayesian NB', data)
@@ -407,18 +413,19 @@ if __name__ == "__main__":
         #ax.axvline(split_date, color='grey', linestyle=':', label='Train/Test Split')
 
         # Axis settings
-        ax.set_title(f'{model_name} Predictions')
-        ax.set_xlabel('Date')
-        ax.set_ylabel('Count')
+        ax.set_title(f'{model_name} Predictions', fontsize=20)
+        ax.set_xlabel('Date', fontsize=18)
+        ax.set_ylabel('Count', fontsize=18)
 
         # Format x-axis to show every 2nd year
         ax.xaxis.set_major_locator(mdates.YearLocator(base=1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 
         # Rotate labels if needed
-        ax.tick_params(axis='x', rotation=45)
+        ax.tick_params(axis='x', rotation=45, labelsize=16)
+        ax.tick_params(axis='y', labelsize=16)
 
-        ax.legend()
+        ax.legend(fontsize=16, title_fontsize=16)
 
     plt.tight_layout()
     #plt.savefig("our_output/diagnostics/predictions_year_test.png", dpi=300)
