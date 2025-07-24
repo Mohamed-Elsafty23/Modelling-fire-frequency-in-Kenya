@@ -88,13 +88,12 @@ class FireClimateSimulator:
         # Fit negative binomial GLM for fire count - EXACTLY like R code
         print("Fitting negative binomial GLM for fire count...")
         
-        # Create seasonal terms exactly like R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
-        # Note: This matches the R formula exactly, including the unusual (2*12*pi/tyme) form
+        # Create seasonal terms
         np.random.seed(42)  # For reproducible seasonal term noise
         sin_noise = np.random.normal(0, 0.1)
         cos_noise = np.random.normal(0, 0.1)
         
-        # CHANGED tyme to month & corrected seasonality formula
+        # corrected seasonality formula
         data['sin_term'] = np.sin((2 * np.pi * data['month'] / 12) + sin_noise)
         data['cos_term'] = np.cos((2 * np.pi * data['month'] / 12) + cos_noise)
         
@@ -104,7 +103,6 @@ class FireClimateSimulator:
         y_glm = data['count']
         
         # Fit negative binomial GLM with log link (matching R's glm.nb)
-        # CHANGED: self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial()).fit()
         self.fire_model = sm.GLM(y_glm, X_glm, family=sm.families.NegativeBinomial(alpha=1/theta)).fit()
         
         # Store coefficients
@@ -154,7 +152,7 @@ class FireClimateSimulator:
         # Simulate rainfall based on temperature relationship + random error
         rainfall_pred = self.rainfall_model.predict(max_temp.reshape(-1, 1))
         
-        # CHANGED this section
+        
         # Adding residual errors
         # Set bounds for binning residuals
         error_min, error_max = self.rainfall_residuals.min(), self.rainfall_residuals.max()
@@ -173,9 +171,9 @@ class FireClimateSimulator:
         time_idx = np.arange(1, n_months + 1)
         month = ((time_idx - 1) % 12) + 1  # CHANGED: Generate months 1–12 cyclically
         
-        # Add corrected seasonal components (vs. R code: sin((2*12*pi/tyme) + rnorm(1,sd=0.1))
+        
         # Use the same noise values that were used during model fitting
-        # CHANGED time_idx to month
+    
         sin_term = np.sin((2 * np.pi * month / 12) + self.sin_noise)
         cos_term = np.cos((2  * np.pi * month / 12) + self.cos_noise)
         
@@ -193,7 +191,6 @@ class FireClimateSimulator:
         mu = np.exp(log_mu)
         
         # Add residual errors exactly like R code
-        # R code: simulated_errors2 <- runif(length(y_count2), min = min(resid2), max = max(resid2))
         # Use residuals from fitted model
         resid_min = self.fire_model.resid_response.min()
         resid_max = self.fire_model.resid_response.max()
@@ -263,7 +260,9 @@ def run_all_simulations():
     print("Starting comprehensive simulation...")
     print(f"Theta values: {theta_values}")
     print(f"Time periods: {list(time_periods.keys())} years")
+
     
+    # run simulations for wach theta and each time period
     for theta in theta_values:
         print(f"\n{'='*50}")
         print(f"Simulating with theta = {theta}")

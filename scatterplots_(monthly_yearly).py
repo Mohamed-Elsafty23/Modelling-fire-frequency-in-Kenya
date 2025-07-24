@@ -15,9 +15,11 @@ import seaborn as sns
 path = '/content/fire_data_2000-18 (1).csv'
 data = pd.read_csv(path)
 
+# Creating the 2000s and the 2010s era
 data_00s = data[(data['year'] >= 2000) & (data['year'] <= 2009)].copy()
 data_10s = data[(data['year'] >= 2010) & (data['year'] <= 2018)].copy()
 
+# plotting the relationship between fire frequency and temperature for both eras
 def plot_temp_vs_fire(data_2000s, data_2010s):
     import os
     os.makedirs("our_output/plots", exist_ok=True)
@@ -85,6 +87,7 @@ def plot_temp_vs_fire(data_2000s, data_2010s):
     plt.close()
 
 
+# Plotting the relationship between fire frequency and rainfall
 def plot_rainfall_vs_fire(data_2000s, data_2010s):
     import os
     os.makedirs("our_output/plots", exist_ok=True)
@@ -156,6 +159,8 @@ def plot_rainfall_vs_fire(data_2000s, data_2010s):
 plot_temp_vs_fire(data_00s, data_10s)
 plot_rainfall_vs_fire(data_00s, data_10s)
 
+
+# Aggregating the yearly values to create a plot that matches the plots that the authos had
 def prepare_yearly_avg(data):
     return data.groupby('year').agg({
         'mean_max_temp': 'mean',
@@ -167,6 +172,7 @@ def prepare_yearly_avg(data):
 avg_00s = prepare_yearly_avg(data_00s)
 avg_10s = prepare_yearly_avg(data_10s)
 
+# Plotting the realtionship between fire frequency and temperature (aggregated yearly) for both eras
 def plot_temp_vs_fire(data_2000s, data_2010s):
     import os
     os.makedirs("our_output/plots", exist_ok=True)
@@ -194,6 +200,8 @@ def plot_temp_vs_fire(data_2000s, data_2010s):
     plt.show()
     plt.close()
 
+
+# Plotting the realtionship between fire frequency and rainfall (aggregated yearly) for both eras
 def plot_rainfall_vs_fire(data_2000s, data_2010s):
     import os
     os.makedirs("our_output/plots", exist_ok=True)
