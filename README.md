@@ -112,16 +112,29 @@ python 6_final_models_real_categorized.py
 - Categorized model results and comparisons
 - Improved model performance metrics
 
-### Step 7: Comprehensive Model Evaluation
+### Step 7 (Option 1): Comprehensive Model Evaluation
 ```bash
 python run_all_models.py
 ```
-**Purpose:** Runs all models on simulated datasets. This is computationally intensive and may take several hours.
+**Purpose:** Runs all models in `6_final_models.py` on simulated datasets. This is computationally intensive and may take several hours.
 
 **Features:**
 - GPU acceleration support (if available)
 - Parallel processing optimization
 - Progress tracking and file-based checkpointing
+- Configurable time periods and theta values
+
+**Output:** 
+- `our_output/model_results_500/` - Comprehensive model evaluation results
+- Performance metrics for all model-dataset combinations
+
+### Step 7 (Option 2): Comprehensive Model Evaluation
+```bash
+python run_final_models_simulated.py
+```
+**Purpose:** Runs all models in `6_final_models.py` on simulated datasets. This is a simpler version of `run_all_models.py`without parallel processing etc. This is computationally intensive and may take several hours.
+
+**Features:**
 - Configurable time periods and theta values
 
 **Output:** 
@@ -227,11 +240,10 @@ This project was developed through collaborative effort by:
 
 ## 📝 Citation
 
+This code is based on:  
+Komondi. (n.d.). Komondi/Modelling-Fire-frequency-in-Kenya. GitHub. https://github.com/Komondi/Modelling-fire-frequency-in-Kenya. 
+
 If you use this code or methodology in your research, please cite the associated publication: "A Bayesian Model for Predicting Fire Frequency in Kenya."
-
-## 📄 License
-
-This project is open source. Please refer to the LICENSE file for details.
 
 ---
 
