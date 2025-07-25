@@ -240,10 +240,11 @@ This project was developed through collaborative effort by:
 
 ## 📝 Citation
 
-This code is based on:  
-Komondi. (n.d.). Komondi/Modelling-Fire-frequency-in-Kenya. GitHub. https://github.com/Komondi/Modelling-fire-frequency-in-Kenya. 
+This code is based on the work of Orero and colleagues:  
+- Komondi. (n.d.). Komondi/Modelling-Fire-frequency-in-Kenya. GitHub. https://github.com/Komondi/Modelling-fire-frequency-in-Kenya. 
+- Orero, L., Omondi, E. O., & Omolo, B. O. (2024). A Bayesian model for predicting monthly fire frequency in Kenya. PLoS ONE, 19(1), e0291800. https://doi.org/10.1371/journal.pone.0291800
 
-If you use this code or methodology in your research, please cite the associated publication: "A Bayesian Model for Predicting Fire Frequency in Kenya."
+If you use their code or methodology in your research, please cite the associated publication.
 
 ---
 
