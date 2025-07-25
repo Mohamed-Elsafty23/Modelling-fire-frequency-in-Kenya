@@ -1,51 +1,238 @@
-# Modelling-fire-frequency-in-Kenya
+# Fire Frequency Modeling in Kenya
 
-This repository contains the data files and code used in the publication titled "A Bayesian Model for Predicting Fire Frequency in Kenya." The objective of the study was to create and evaluate a Bayesian model to predict fire frequency in Kenya. The repository includes code used to preprocess the data and combine it into the final form. It also includes simulation scripts used to generate the datasets used in the study.
+A comprehensive Bayesian modeling framework for predicting fire frequency in Kenya using climate variables. This project implements both standard and Bayesian negative binomial models to analyze the relationship between climate factors (temperature, rainfall) and fire occurrence patterns.
 
-## Repository Structure
+## 🎯 Project Overview
 
-The repository is organized into the following folders:
+This repository contains a complete data science pipeline that:
+- Processes MODIS fire hotspot data and climate datasets
+- Applies spatial categorization to improve model performance
+- Implements both frequentist and Bayesian statistical models
+- Generates synthetic data for model validation
+- Provides comprehensive model comparison and visualization tools
 
-- **modis_data**: This folder contains CSV files of daily fire hotspot data downloaded from MODIS. The data spans the period from 2000 to 2020.
+## 📋 Prerequisites
 
-- **fire**: This folder contains CSV files of fire frequency by month from 2000 to 2018.
+### Required Software
+- Python 3.8 or higher
+- Git (for cloning the repository)
 
-- **rainfall**: This folder contains GeoTIFF files of precipitation data in Kenya from 2000 to 2018.
+### Python Dependencies
+Install all required packages using:
+```bash
+pip install -r requirements.txt
+```
 
-- **tmin**: This folder contains GeoTIFF files of minimum temperature data in Kenya from 2000 to 2018.
+**Key dependencies include:**
+- `pandas`, `numpy`, `scipy` - Data manipulation and analysis
+- `geopandas`, `rasterio` - Geospatial data processing
+- `pymc`, `arviz` - Bayesian modeling
+- `scikit-learn`, `statsmodels` - Statistical modeling
+- `matplotlib`, `seaborn` - Data visualization
 
-- **tmax**: This folder contains GeoTIFF files of maximum temperature data in Kenya from 2000 to 2018.
+## 📁 Data Structure
 
-- **climate**: This folder contains merged CSV files of rainfall, fire, minimum temperature, and maximum temperature data matched by coordinates. The merged data is used for analysis.
+Ensure your data is organized in the following folders:
+- `modis_data/` - MODIS fire hotspot CSV files (2000-2020)
+- `fire/` - Monthly fire frequency CSV files (2000-2018)
+- `rain/` - Precipitation TIFF files (2000-2018)
+- `tmin/` - Minimum temperature TIFF files (2000-2018)
+- `tmax/` - Maximum temperature TIFF files (2000-2018)
 
-- **simulated_data**: This folder contains CSV files of data simulated during the study. These simulated datasets are used for model evaluation.
+## 🚀 How to Run the Project
 
-- **model_results**: This folder contains model results on the simulated datasets. The results provide insights into the performance of the Bayesian model.
+Follow these steps in order to reproduce the complete analysis:
 
-## Code Scripts
+### Step 1: Data Import and Merging
+```bash
+python 1_import_merge.py
+```
+**Purpose:** Imports MODIS fire data and merges with climate data (rainfall, tmax, tmin). Creates climate data CSV files in separate folders.
 
-The repository also contains several R scripts that perform various tasks:
+**Output:** 
+- `climate_tmax_csv/`, `climate_tmin_csv/`, `climate_rainfall_csv/` folders
+- Climate data stored as CSV files for efficient processing
 
-- **1import_merge**: This script contains code to import and merge climate and fire data. It processes the raw data files and combines them into a format suitable for further analysis.
+### Step 2: Data Aggregation
+```bash
+python 2_data_aggregate.py
+```
+**Purpose:** Merges all climate and fire data into a single analysis-ready dataset.
 
-- **2data_aggregate**: This script merges data in the climate folder into a single file to be used in the analysis. It aggregates the data from different sources and prepares it for modeling.
+**Output:** 
+- `fire_data_2000-18.csv` - Main dataset for analysis
 
-- **3check_seasonality**: This script checks for seasonality in the data. It performs seasonal analysis to understand patterns and trends in fire frequency.
+### Step 3: Seasonality Analysis
+```bash
+python 3_check_seasonality.py
+```
+**Purpose:** Uses TBATS model to detect seasonal patterns in climate and fire data.
 
-- **5simulation_temp**: This script runs simulations based on specified parameters. It generates simulated datasets to evaluate the performance of the Bayesian model.
+**Output:** 
+- Seasonality plots in `our_output/plots/`
+- Statistical summaries of seasonal components
 
-- **6final_models**: This script contains the formulation of the models used in the study. It defines the Bayesian model and sets up the necessary priors and likelihoods.
+### Step 4: Location Categorization
+```bash
+python categorize_locations.py
+```
+**Purpose:** Categorizes geographic locations into quadrants based on Kenya's geographic center for improved spatial modeling.
 
-- **7models_years**: This folder contains four scripts that implement the models on four different time periods. Each script applies the Bayesian model to the respective dataset and generates predictions.
+**Output:** 
+- `fire_data_2000-18_categorized.csv` - Dataset with spatial categories
+- Visualization maps showing quadrant divisions
 
-- **8descriptive_stats**: This script conducts data analysis and descriptive statistics on the real aggregated data. It provides insights into the characteristics of the data and helps in understanding the variables.
+### Step 5: Generate Simulated Data
+```bash
+python 5_simulation_temp.py
+```
+**Purpose:** Creates synthetic datasets with different dispersion parameters (theta) and time periods for model validation.
 
-- **9sim_visualization**: This script contains code to create graphs from the simulation model results. It visualizes the simulation outputs, making it easier to interpret the results.
+**Output:** 
+- `our_output/simulated_data/` - Simulated datasets organized by time period and theta values
+- Various combinations: 5, 10, 20, 30 years with theta values 1.5, 5, 10, 100
 
-## Publication Objective
+### Step 6A: Real Data Modeling (Original)
+```bash
+python 6_final_models_real.py
+```
+**Purpose:** Applies standard and Bayesian negative binomial models to the original real dataset.
 
-The objective of the publication was to create and evaluate a Bayesian model for predicting fire frequency in Kenya. The study used data from MODIS, which provides daily fire hotspot information, and climate data including rainfall, minimum temperature, and maximum temperature. By merging and analyzing these datasets, the study aimed to develop a model that could predict fire frequency in Kenya based on climate variables.
+**Output:** 
+- Model results, diagnostics, and estimates in `our_output/tables/`
+- Statistical model summaries and performance metrics
 
-This repository serves as a comprehensive resource for replicating the study's results and exploring the code and data used in the analysis. You can use the provided scripts and datasets to further investigate fire frequency patterns in Kenya or extend the research to other regions. Feel free to explore the code and adapt it to your specific needs.
+### Step 6B: Real Data Modeling (Categorized)
+```bash
+python 6_final_models_real_categorized.py
+```
+**Purpose:** Applies models to the spatially categorized dataset for comparison.
 
-Please refer to the upcoming publication for detailed information on the methodology, results, and conclusions of the study.
+**Output:** 
+- Categorized model results and comparisons
+- Improved model performance metrics
+
+### Step 7: Comprehensive Model Evaluation
+```bash
+python run_all_models.py
+```
+**Purpose:** Runs all models on simulated datasets. This is computationally intensive and may take several hours.
+
+**Features:**
+- GPU acceleration support (if available)
+- Parallel processing optimization
+- Progress tracking and file-based checkpointing
+- Configurable time periods and theta values
+
+**Output:** 
+- `our_output/model_results_500/` - Comprehensive model evaluation results
+- Performance metrics for all model-dataset combinations
+
+### Step 8: Model Comparison
+```bash
+python compare_categorized_vs_original.py
+```
+**Purpose:** Compares performance between categorized and original modeling approaches.
+
+**Output:** 
+- `comparison_results/` - Side-by-side performance comparisons
+- Improvement analysis and visualization
+
+### Step 9: Results Visualization
+```bash
+python visualize_simulations.py
+```
+**Purpose:** Creates comprehensive visualizations of simulation results.
+
+**Output:** 
+- Summary tables and performance plots
+- Model comparison visualizations
+
+### Step 10: Temporal Analysis Plots
+```bash
+python scatterplots_(monthly_yearly).py
+```
+**Purpose:** Generates detailed scatterplots showing temporal relationships between climate variables and fire frequency.
+
+**Output:** 
+- Temporal trend visualizations
+- Decade-wise comparison plots
+
+## 📊 Key Outputs
+
+After running the complete pipeline, you'll find:
+
+- **`our_output/tables/`** - Excel files with model estimates, diagnostics, and metrics
+- **`our_output/plots/`** - Visualization plots and charts
+- **`our_output/model_results_500/`** - Comprehensive model evaluation results
+- **`comparison_results/`** - Performance comparison between approaches
+
+## ⚙️ Configuration Options
+
+### Computational Performance
+- **GPU Support:** Automatically detected and enabled if available
+- **Parallel Processing:** Optimized for multi-core systems
+- **Memory Management:** Efficient handling of large datasets
+
+### Model Parameters
+Edit `run_all_models.py` to customize:
+- Time periods: 5, 10, 20, 30 years (line 43)
+- Theta values: 1.5, 5, 10, 100 (line 48)
+- Number of simulation iterations
+
+## 🔧 Troubleshooting
+
+### Common Issues:
+1. **PyMC Installation:** If Bayesian models fail, ensure PyMC is properly installed
+2. **Memory Errors:** Reduce the number of parallel workers in `run_all_models.py`
+3. **Missing Data:** Ensure all input data folders are present before starting
+4. **Mac Users:** Uncomment PyTensor configuration lines in model files if needed
+
+### Performance Tips:
+- Run on a machine with at least 8GB RAM for large simulations
+- Use GPU acceleration for faster Bayesian model computation
+- Monitor disk space - simulated data can be large
+
+## 📈 Project Structure
+
+```
+├── Data Import & Processing
+│   ├── 1_import_merge.py          # Import and merge climate/fire data
+│   ├── 2_data_aggregate.py        # Create final analysis dataset
+│   └── categorize_locations.py    # Spatial categorization
+├── Analysis & Modeling
+│   ├── 3_check_seasonality.py     # Seasonality detection
+│   ├── 5_simulation_temp.py       # Generate synthetic data
+│   ├── 6_final_models_real.py     # Real data modeling
+│   └── 6_final_models_real_categorized.py  # Categorized modeling
+├── Evaluation & Comparison
+│   ├── run_all_models.py          # Comprehensive evaluation
+│   ├── compare_categorized_vs_original.py  # Performance comparison
+│   ├── visualize_simulations.py   # Results visualization
+│   └── scatterplots_(monthly_yearly).py    # Temporal analysis
+└── Utilities
+    ├── model_functions.py         # Shared model functions
+    ├── output_utils.py            # Output management
+    └── checkpoint_manager.py      # Progress tracking
+```
+
+## 🤝 Contributors
+
+This project was developed through collaborative effort by:
+
+- [@Mohamed-Elsafty23](https://github.com/Mohamed-Elsafty23)
+- [@Wanja24](https://github.com/Wanja24)
+- [@Ghaith-Dailami](https://github.com/Ghaith-Dailami) 
+- [@joyntv](https://github.com/joyntv)
+
+## 📝 Citation
+
+If you use this code or methodology in your research, please cite the associated publication: "A Bayesian Model for Predicting Fire Frequency in Kenya."
+
+## 📄 License
+
+This project is open source. Please refer to the LICENSE file for details.
+
+---
+
+*For questions or issues, please open a GitHub issue or contact the contributors.*
